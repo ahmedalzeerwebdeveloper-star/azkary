@@ -9,8 +9,17 @@ import 'core/services/widget_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  await NotificationService.init();
-  await WidgetService.init();
+  try {
+    await NotificationService.init();
+  } catch (e) {
+    debugPrint('NotificationService init error: $e');
+  }
+
+  try {
+    await WidgetService.init();
+  } catch (e) {
+    debugPrint('WidgetService init error: $e');
+  }
   
   runApp(const MyApp());
 }
