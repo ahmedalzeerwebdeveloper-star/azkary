@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme.dart';
 import '../../data/models/dhikr_model.dart';
+import '../../core/services/prayer_times_service.dart';
 
 class DhikrCard extends StatefulWidget {
   final Dhikr dhikr;
@@ -24,12 +25,34 @@ class _DhikrCardState extends State<DhikrCard> {
     
     // Dynamic count for specific dhikr based on time (Fajr/Maghrib)
     if (widget.dhikr.text.contains('يُحيـي وَيُمـيتُ وهُوَ على كُلّ شيءٍ قدير')) {
-      int hour = DateTime.now().hour;
-      // Fajr/Morning: ~4 AM to 9 AM, Maghrib/Evening: ~15 PM (3 PM) to 19 PM (7 PM)
-      if ((hour >= 4 && hour <= 9) || (hour >= 15 && hour <= 19)) {
-        initialCount = 10;
+      final now = DateTime.now();
+      final prayers = PrayerTimesService.getTodayPrayers();
+      
+      if (prayers.isNotEmpty) {
+        DateTime? fajr, dhuhr, maghrib, isha;
+        for (var p in prayers) {
+          if (p.name == 'الفجر') fajr = p.time;
+          if (p.name == 'الظهر') dhuhr = p.time;
+          if (p.name == 'المغرب') maghrib = p.time;
+          if (p.name == 'العشاء') isha = p.time;
+        }
+        
+        bool isFajrPeriod = fajr != null && dhuhr != null && now.isAfter(fajr) && now.isBefore(dhuhr);
+        bool isMaghribPeriod = maghrib != null && isha != null && now.isAfter(maghrib) && now.isBefore(isha);
+        
+        if (isFajrPeriod || isMaghribPeriod) {
+          initialCount = 10;
+        } else {
+          initialCount = 1;
+        }
       } else {
-        initialCount = 1;
+        // Fallback if prayer times aren't loaded yet
+        int hour = now.hour;
+        if ((hour >= 4 && hour <= 9) || (hour >= 15 && hour <= 19)) {
+          initialCount = 10;
+        } else {
+          initialCount = 1;
+        }
       }
     }
     
