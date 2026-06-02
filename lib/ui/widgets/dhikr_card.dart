@@ -20,7 +20,20 @@ class _DhikrCardState extends State<DhikrCard> {
   @override
   void initState() {
     super.initState();
-    remainingCount = widget.dhikr.count;
+    int initialCount = widget.dhikr.count;
+    
+    // Dynamic count for specific dhikr based on time (Fajr/Maghrib)
+    if (widget.dhikr.text.contains('يُحيـي وَيُمـيتُ وهُوَ على كُلّ شيءٍ قدير')) {
+      int hour = DateTime.now().hour;
+      // Fajr/Morning: ~4 AM to 9 AM, Maghrib/Evening: ~15 PM (3 PM) to 19 PM (7 PM)
+      if ((hour >= 4 && hour <= 9) || (hour >= 15 && hour <= 19)) {
+        initialCount = 10;
+      } else {
+        initialCount = 1;
+      }
+    }
+    
+    remainingCount = initialCount;
   }
 
   void _onTap() {
