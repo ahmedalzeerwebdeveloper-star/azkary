@@ -1,6 +1,6 @@
 {
-    "name": "wird_app",
-    "short_name": "wird_app",
+    "name": "أذكاري",
+    "short_name": "أذكاري",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
