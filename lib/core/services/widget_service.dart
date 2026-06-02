@@ -1,0 +1,111 @@
+// ignore_for_file: empty_catches
+
+import 'package:flutter/services.dart';
+import 'package:home_widget/home_widget.dart';
+import 'package:intl/intl.dart';
+import 'package:hijri/hijri_calendar.dart';
+import 'package:geocoding/geocoding.dart';
+import 'prayer_times_service.dart';
+import 'location_service.dart';
+
+class WidgetService {
+  static const String appGroupId = 'com.ahmed.wird.wird_app';
+  static const String androidWidgetName = 'PrayerWidgetProvider';
+  static const _widgetChannel = MethodChannel('com.ahmed.wird.wird_app/widget');
+
+  static Future<void> init() async {
+    try {
+      await HomeWidget.setAppGroupId(appGroupId);
+    } catch (_) {
+    }
+  }
+
+  static Future<void> updateWidget() async {
+    try {
+      var prayers = PrayerTimesService.getTodayPrayers();
+      if (prayers.isEmpty) {
+        var position = await LocationService.getCurrentPosition();
+        if (position == null) return;
+        PrayerTimesService.init(position);
+        prayers = PrayerTimesService.getTodayPrayers();
+      }
+      if (prayers.isEmpty) return;
+
+String city = 'المدينة';
+      try {
+        final coords = PrayerTimesService.getCoordinates();
+        if (coords == null) return;
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          coords.latitude,
+          coords.longitude,
+        ).timeout(const Duration(seconds: 5));
+        if (placemarks.isNotEmpty) {
+          city = placemarks.first.subAdministrativeArea ?? placemarks.first.locality ?? 'المدينة';
+        }
+      } catch (_) {
+      }
+      
+      const arabicDays = ['الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
+      final currentDay = arabicDays[DateTime.now().weekday - 1];
+      city = '$currentDay، $city';
+
+      HijriCalendar.setLocal('ar');
+      final today = HijriCalendar.now();
+      String hijriDate = '${today.hDay} ${today.longMonthName} ${today.hYear}';
+
+      final nextPrayer = PrayerTimesService.getNextPrayer();
+      String nextName = nextPrayer?.name ?? '';
+      int nextTimeMillis = 0;
+      if (nextPrayer != null) {
+          nextTimeMillis = nextPrayer.time.millisecondsSinceEpoch;
+      }
+
+      await HomeWidget.saveWidgetData<String>('city', city);
+      await HomeWidget.saveWidgetData<String>('hijri', hijriDate);
+      await HomeWidget.saveWidgetData<String>('nextPrayerName', nextName);
+      await HomeWidget.saveWidgetData<int>('nextPrayerTimeMillis', nextTimeMillis);
+
+      for (var prayer in prayers) {
+        String key;
+        if (prayer.name == 'الفجر') {
+          key = 'fajr';
+        } else if (prayer.name == 'الشروق') {
+          key = 'shurooq';
+        } else if (prayer.name == 'الظهر') {
+          key = 'dhuhr';
+        } else if (prayer.name == 'العصر') {
+          key = 'asr';
+        } else if (prayer.name == 'المغرب') {
+          key = 'maghrib';
+        } else if (prayer.name == 'العشاء') {
+          key = 'isha';
+        } else {
+          key = '';
+        }
+
+        if (key.isNotEmpty) {
+          await HomeWidget.saveWidgetData<String>(key, DateFormat('hh:mm a').format(prayer.time).replaceAll('AM', 'ص').replaceAll('PM', 'م').replaceAll('ص', 'ص').replaceAll('م', 'م'));
+        }
+      }
+
+      _updateWidgetAppearance();
+    } catch (_) {
+    }
+  }
+
+  static Future<void> _updateWidgetAppearance() async {
+    try {
+      await _widgetChannel
+          .invokeMethod('updatePrayerWidget')
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      try {
+        await HomeWidget.updateWidget(
+          name: androidWidgetName,
+          qualifiedAndroidName: 'com.ahmed.wird.wird_app.PrayerWidgetProvider',
+        );
+      } catch (_) {
+      }
+    }
+  }
+}
