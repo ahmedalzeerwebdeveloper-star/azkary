@@ -10,6 +10,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private val _keepAdhan by lazy { com.ahmed.wird.wird_app.R.raw.adhan }
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.ahmed.wird.wird_app/widget")
@@ -96,7 +97,4 @@ class MainActivity : FlutterActivity() {
         }
         return "الفجر" to 0L
     }
-
-    @Suppress("UNUSED")
-    private val _keepAdhan = com.ahmed.wird.wird_app.R.raw.adhan
 }
