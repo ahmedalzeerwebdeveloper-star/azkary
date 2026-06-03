@@ -27,6 +27,33 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.ahmed.wird.wird_app/alarms")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "scheduleAlarm" -> {
+                        try {
+                            val id = call.argument<Int>("id") ?: 0
+                            val prayerName = call.argument<String>("prayerName") ?: "الصلاة"
+                            val prayerBody = call.argument<String>("prayerBody") ?: ""
+                            val triggerAtMillis = call.argument<Long>("triggerAtMillis") ?: 0L
+                            AlarmReceiver.schedule(this@MainActivity, id, prayerName, prayerBody, triggerAtMillis)
+                            result.success(true)
+                        } catch (e: Throwable) {
+                            result.error("SCHEDULE_ERROR", e.message, null)
+                        }
+                    }
+                    "cancelAlarm" -> {
+                        try {
+                            val id = call.argument<Int>("id") ?: 0
+                            AlarmReceiver.cancel(this@MainActivity, id)
+                            result.success(true)
+                        } catch (e: Throwable) {
+                            result.error("CANCEL_ERROR", e.message, null)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
     private fun updatePrayerWidgetDirectly() {

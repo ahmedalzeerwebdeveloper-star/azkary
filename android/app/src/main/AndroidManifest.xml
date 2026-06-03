@@ -51,6 +51,7 @@
             </intent-filter>
         </receiver>
         
+        <receiver android:exported="false" android:name=".AlarmReceiver" />
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
             <intent-filter>

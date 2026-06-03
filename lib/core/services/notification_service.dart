@@ -1,16 +1,24 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest_all.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 import 'prayer_times_service.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  static const MethodChannel _alarmChannel = MethodChannel('com.ahmed.wird.wird_app/alarms');
+
+  static int _prayerIndex(String name) {
+    switch (name) {
+      case 'الفجر': return 0;
+      case 'الظهر': return 1;
+      case 'العصر': return 2;
+      case 'المغرب': return 3;
+      case 'العشاء': return 4;
+      default: return 5;
+    }
+  }
 
   static Future<void> init() async {
-    tz.initializeTimeZones();
-    tz.setLocalLocation(tz.local);
-
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('ic_launcher');
 
@@ -28,7 +36,6 @@ class NotificationService {
 
     await _notificationsPlugin.initialize(initializationSettings);
 
-    // Request permissions for Android 13+
     _notificationsPlugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
   }
@@ -54,14 +61,13 @@ class NotificationService {
         'أحمد علي الزير',
         NotificationDetails(
           android: androidDetails,
-          iOS: const DarwinNotificationDetails(
+          iOS: DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: true,
             presentSound: true,
           ),
         ),
       );
-      debugPrint('Test notification sent successfully');
     } catch (e) {
       debugPrint('Test notification failed: $e');
     }
@@ -70,7 +76,6 @@ class NotificationService {
   static Future<void> schedulePrayerNotifications() async {
     final now = DateTime.now();
     int scheduled = 0;
-    int id = 0;
 
     for (int i = 0; i < 7; i++) {
       final date = now.add(Duration(days: i));
@@ -87,9 +92,11 @@ class NotificationService {
             body = 'حان الآن موعد صلاة ${prayer.name} - أقم صلاتك تسعد حياتك';
           }
 
+          final int id = i * 10 + _prayerIndex(prayer.name);
+
           await _scheduleNotification(
-            id: id++,
-            title: 'نداء الصلاة',
+            id: id,
+            prayerName: prayer.name,
             body: body,
             scheduledTime: prayer.time,
           );
@@ -100,16 +107,12 @@ class NotificationService {
     debugPrint('Scheduled $scheduled prayer notifications');
   }
 
-  static Future<void> scheduleDebugNotification({int secondsFromNow = 30}) async {
+  static Future<void> triggerPrayerNotification(String prayerName, String body) async {
     try {
-      _notificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
-
-      await _notificationsPlugin.zonedSchedule(
-        8888,
-        'اختبار جدولة الإشعارات',
-        'تم جدولة هذا الإشعار قبل $secondsFromNow ث - إذا رأيته فالجَدوَلة تعمل',
-        tz.TZDateTime.from(DateTime.now().add(Duration(seconds: secondsFromNow)), tz.local),
+      await _notificationsPlugin.show(
+        7777,
+        'نداء الصلاة - $prayerName',
+        body,
         const NotificationDetails(
           android: AndroidNotificationDetails(
             'prayer_channel_v2',
@@ -121,17 +124,13 @@ class NotificationService {
             sound: RawResourceAndroidNotificationSound('adhan'),
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time,
       );
-      debugPrint('Debug notification scheduled via zonedSchedule');
     } catch (e) {
-      debugPrint('zonedSchedule failed: $e');
+      debugPrint('Prayer notification failed: $e');
     }
   }
 
-  static void scheduleDebugTimerTest({int secondsFromNow = 30}) {
+  static void scheduleDebugTimerTest({int secondsFromNow = 15}) {
     Future.delayed(Duration(seconds: secondsFromNow), () async {
       try {
         await _notificationsPlugin.show(
@@ -158,65 +157,19 @@ class NotificationService {
 
   static Future<void> _scheduleNotification({
     required int id,
-    required String title,
+    required String prayerName,
     required String body,
     required DateTime scheduledTime,
   }) async {
     try {
-      await _notificationsPlugin.zonedSchedule(
-        id,
-        title,
-        body,
-        tz.TZDateTime.from(scheduledTime, tz.local),
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'prayer_channel_v2',
-            'مواقيت الصلاة',
-            channelDescription: 'تنبيهات الأذان ومواقيت الصلاة',
-            importance: Importance.max,
-            priority: Priority.high,
-            playSound: true,
-            sound: RawResourceAndroidNotificationSound('adhan'),
-          ),
-          iOS: DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      );
+      await _alarmChannel.invokeMethod('scheduleAlarm', {
+        'id': id,
+        'prayerName': prayerName,
+        'prayerBody': body,
+        'triggerAtMillis': scheduledTime.millisecondsSinceEpoch,
+      });
     } catch (e) {
-      debugPrint('Exact notification failed for $title at $scheduledTime: $e');
-      try {
-        await _notificationsPlugin.zonedSchedule(
-          id,
-          title,
-          body,
-          tz.TZDateTime.from(scheduledTime, tz.local),
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'prayer_channel_v2',
-              'مواقيت الصلاة',
-              channelDescription: 'تنبيهات الأذان ومواقيت الصلاة',
-              importance: Importance.max,
-              priority: Priority.high,
-              playSound: true,
-              sound: RawResourceAndroidNotificationSound('adhan'),
-            ),
-            iOS: DarwinNotificationDetails(
-              presentAlert: true,
-              presentBadge: true,
-              presentSound: true,
-            ),
-          ),
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-        );
-      } catch (e2) {
-        debugPrint('Inexact fallback also failed for $title: $e2');
-      }
+      debugPrint('Failed to schedule alarm for $prayerName at $scheduledTime: $e');
     }
   }
 }

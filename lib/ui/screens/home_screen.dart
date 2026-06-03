@@ -120,6 +120,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           nextPrayer.name != _nextPrayer!.name;
 
       if (needsUpdate) {
+        if (_nextPrayer != null && now.isAfter(_nextPrayer!.time) && now.difference(_nextPrayer!.time).inSeconds < 20) {
+          String body;
+          if (_nextPrayer!.name == 'الفجر') {
+            body = 'الصلاة خير من النوم - قم ولبِّ نداء الله';
+          } else {
+            body = 'حان الآن موعد صلاة ${_nextPrayer!.name} - أقم صلاتك تسعد حياتك';
+          }
+          NotificationService.triggerPrayerNotification(_nextPrayer!.name, body);
+        }
         await WidgetService.updateWidget();
         if (!mounted) return;
         setState(() {
@@ -204,12 +213,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   _testTapCount = 0;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('جارٍ اختبار الجدولة... انتظر 15 و 30 ثانية'),
+                      content: Text('اختبار الإشعار المجدول... انتظر 15 ثانية'),
                       duration: Duration(seconds: 3),
                     ),
                   );
-                  NotificationService.scheduleDebugTimerTest(secondsFromNow: 15);
-                  NotificationService.scheduleDebugNotification(secondsFromNow: 30);
+                  NotificationService.scheduleDebugTimerTest();
                 },
                 child: Text(
                   'Ahmed Alzeer',
