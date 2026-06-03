@@ -78,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       PrayerTimesService.init(position);
 
       await WidgetService.updateWidget().timeout(const Duration(seconds: 8));
-      await NotificationService.schedulePrayerNotifications().timeout(const Duration(seconds: 8));
+      await NotificationService.schedulePrayerNotifications();
 
       if (mounted) {
         setState(() {
@@ -190,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     _testTapCount = 0;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('إرسال إشعار تجريبي...'),
+                        content: Text('إشعار فوري - تم التطوير بواسطة أحمد علي الزير'),
                         duration: Duration(seconds: 2),
                       ),
                     );
@@ -199,6 +199,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Future.delayed(const Duration(seconds: 5), () {
                     _testTapCount = 0;
                   });
+                },
+                onLongPress: () {
+                  _testTapCount = 0;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم جدولة إشعار تجريبي بعد 30 ثانية'),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                  NotificationService.scheduleDebugNotification();
                 },
                 child: Text(
                   'Ahmed Alzeer',

@@ -68,19 +68,17 @@ class NotificationService {
   }
 
   static Future<void> schedulePrayerNotifications() async {
-    // Clear old
-    await _notificationsPlugin.cancelAll();
-
-    int id = 0;
     final now = DateTime.now();
-    
+    int scheduled = 0;
+    int id = 0;
+
     for (int i = 0; i < 7; i++) {
       final date = now.add(Duration(days: i));
       final prayers = PrayerTimesService.getPrayersForDate(date);
-      
+
       for (var prayer in prayers) {
-        if (prayer.name == 'الشروق') continue; // Sunrise is not an obligatory prayer
-        
+        if (prayer.name == 'الشروق') continue;
+
         if (prayer.time.isAfter(now)) {
           String body;
           if (prayer.name == 'الفجر') {
@@ -95,7 +93,64 @@ class NotificationService {
             body: body,
             scheduledTime: prayer.time,
           );
+          scheduled++;
         }
+      }
+    }
+    debugPrint('Scheduled $scheduled prayer notifications');
+  }
+
+  static Future<void> scheduleDebugNotification({int secondsFromNow = 30}) async {
+    final alarmTime = DateTime.now().add(Duration(seconds: secondsFromNow));
+    try {
+      _notificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+
+      await _notificationsPlugin.zonedSchedule(
+        8888,
+        'اختبار جدولة الإشعارات',
+        'تم جدولة هذا الإشعار قبل $secondsFromNow ث - إذا رأيته فالجَدوَلة تعمل',
+        tz.TZDateTime.from(alarmTime, tz.local),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'prayer_channel_v2',
+            'مواقيت الصلاة',
+            channelDescription: 'تنبيهات الأذان ومواقيت الصلاة',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+            sound: RawResourceAndroidNotificationSound('adhan'),
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      );
+      debugPrint('Debug notification scheduled for $alarmTime');
+    } catch (e) {
+      debugPrint('Debug notification scheduling failed: $e');
+      try {
+        await _notificationsPlugin.zonedSchedule(
+          8888,
+          'اختبار جدولة الإشعارات',
+          'تم جدولة هذا الإشعار قبل $secondsFromNow ث - إذا رأيته فالجَدوَلة تعمل',
+          tz.TZDateTime.from(alarmTime, tz.local),
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'prayer_channel_v2',
+              'مواقيت الصلاة',
+              channelDescription: 'تنبيهات الأذان ومواقيت الصلاة',
+              importance: Importance.max,
+              priority: Priority.high,
+              playSound: true,
+              sound: RawResourceAndroidNotificationSound('adhan'),
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        );
+        debugPrint('Debug notification scheduled (inexact fallback)');
+      } catch (e2) {
+        debugPrint('Debug notification scheduling failed completely: $e2');
       }
     }
   }
