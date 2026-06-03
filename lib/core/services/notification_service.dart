@@ -101,7 +101,6 @@ class NotificationService {
   }
 
   static Future<void> scheduleDebugNotification({int secondsFromNow = 30}) async {
-    final alarmTime = DateTime.now().add(Duration(seconds: secondsFromNow));
     try {
       _notificationsPlugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
@@ -110,7 +109,7 @@ class NotificationService {
         8888,
         'اختبار جدولة الإشعارات',
         'تم جدولة هذا الإشعار قبل $secondsFromNow ث - إذا رأيته فالجَدوَلة تعمل',
-        tz.TZDateTime.from(alarmTime, tz.local),
+        tz.TZDateTime.from(DateTime.now().add(Duration(seconds: secondsFromNow)), tz.local),
         const NotificationDetails(
           android: AndroidNotificationDetails(
             'prayer_channel_v2',
@@ -122,18 +121,23 @@ class NotificationService {
             sound: RawResourceAndroidNotificationSound('adhan'),
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
       );
-      debugPrint('Debug notification scheduled for $alarmTime');
+      debugPrint('Debug notification scheduled via zonedSchedule');
     } catch (e) {
-      debugPrint('Debug notification scheduling failed: $e');
+      debugPrint('zonedSchedule failed: $e');
+    }
+  }
+
+  static void scheduleDebugTimerTest({int secondsFromNow = 30}) {
+    Future.delayed(Duration(seconds: secondsFromNow), () async {
       try {
-        await _notificationsPlugin.zonedSchedule(
-          8888,
-          'اختبار جدولة الإشعارات',
-          'تم جدولة هذا الإشعار قبل $secondsFromNow ث - إذا رأيته فالجَدوَلة تعمل',
-          tz.TZDateTime.from(alarmTime, tz.local),
+        await _notificationsPlugin.show(
+          8887,
+          'اختبار التأخير',
+          'ظهر بعد $secondsFromNow ثانية - الإشعارات شغالة',
           const NotificationDetails(
             android: AndroidNotificationDetails(
               'prayer_channel_v2',
@@ -145,14 +149,11 @@ class NotificationService {
               sound: RawResourceAndroidNotificationSound('adhan'),
             ),
           ),
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         );
-        debugPrint('Debug notification scheduled (inexact fallback)');
-      } catch (e2) {
-        debugPrint('Debug notification scheduling failed completely: $e2');
+      } catch (e) {
+        debugPrint('Timer test failed: $e');
       }
-    }
+    });
   }
 
   static Future<void> _scheduleNotification({

@@ -204,11 +204,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   _testTapCount = 0;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('تم جدولة إشعار تجريبي بعد 30 ثانية'),
+                      content: Text('جارٍ اختبار الجدولة... انتظر 15 و 30 ثانية'),
                       duration: Duration(seconds: 3),
                     ),
                   );
-                  NotificationService.scheduleDebugNotification();
+                  NotificationService.scheduleDebugTimerTest(secondsFromNow: 15);
+                  NotificationService.scheduleDebugNotification(secondsFromNow: 30);
                 },
                 child: Text(
                   'Ahmed Alzeer',
