@@ -23,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   PrayerData? _nextPrayer;
   List<PrayerData> _todayPrayers = [];
   Timer? _prayerCheckTimer;
+  int _testTapCount = 0;
 
   @override
   void initState() {
@@ -47,7 +48,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _refreshWidget() async {
     await WidgetService.updateWidget();
-    await NotificationService.schedulePrayerNotifications();
     if (mounted) {
       setState(() {
         _todayPrayers = PrayerTimesService.getTodayPrayers();
@@ -58,9 +58,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _initPrayerTimes() async {
     try {
-      await Permission.notification.request();
+      await Permission.notification.request().timeout(const Duration(seconds: 5));
+      await Permission.scheduleExactAlarm.request().timeout(const Duration(seconds: 3));
 
-      var position = await LocationService.getCurrentPosition() ?? Position(
+      var position = await LocationService.getCurrentPosition().timeout(const Duration(seconds: 8));
+      position ??= Position(
         latitude: 30.0444,
         longitude: 31.2357,
         timestamp: DateTime.now(),
@@ -74,9 +76,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
 
       PrayerTimesService.init(position);
-      
-      await WidgetService.updateWidget();
-      await NotificationService.schedulePrayerNotifications();
+
+      await WidgetService.updateWidget().timeout(const Duration(seconds: 8));
+      await NotificationService.schedulePrayerNotifications().timeout(const Duration(seconds: 8));
 
       if (mounted) {
         setState(() {
@@ -86,10 +88,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _startPrayerCheck();
       }
     } catch (e) {
-      print('Error initializing prayer times: $e');
+      debugPrint('Error initializing prayer times: $e');
       if (mounted) {
         setState(() {
-          // If init failed but we have Cairo fallback, we should still try to get today's prayers
           _todayPrayers = PrayerTimesService.getTodayPrayers();
           _nextPrayer = PrayerTimesService.getNextPrayer();
         });
@@ -105,13 +106,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _startPrayerCheck() {
     _prayerCheckTimer?.cancel();
-    _prayerCheckTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+    _prayerCheckTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
       if (!mounted) return;
-      if (_nextPrayer != null && DateTime.now().isAfter(_nextPrayer!.time)) {
+
+      PrayerTimesService.refreshIfDayChanged();
+
+      final nextPrayer = PrayerTimesService.getNextPrayer();
+      if (nextPrayer == null) return;
+
+      final now = DateTime.now();
+      final needsUpdate = _nextPrayer == null ||
+          now.isAfter(_nextPrayer!.time) ||
+          nextPrayer.name != _nextPrayer!.name;
+
+      if (needsUpdate) {
         await WidgetService.updateWidget();
         if (!mounted) return;
         setState(() {
-          _nextPrayer = PrayerTimesService.getNextPrayer();
+          _nextPrayer = nextPrayer;
           _todayPrayers = PrayerTimesService.getTodayPrayers();
         });
       }
@@ -171,13 +183,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
             Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
-              child: Text(
-                'Ahmed Alzeer',
-                style: TextStyle(
-                  color: AppTheme.primary.withValues(alpha: 0.5),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 2,
+              child: GestureDetector(
+                onTap: () {
+                  _testTapCount++;
+                  if (_testTapCount >= 5) {
+                    _testTapCount = 0;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('إرسال إشعار تجريبي...'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                    NotificationService.testNotification();
+                  }
+                  Future.delayed(const Duration(seconds: 5), () {
+                    _testTapCount = 0;
+                  });
+                },
+                child: Text(
+                  'Ahmed Alzeer',
+                  style: TextStyle(
+                    color: AppTheme.primary.withValues(alpha: 0.5),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 2,
+                  ),
                 ),
               ),
             ),
@@ -367,6 +397,7 @@ class _PrayerCountdownState extends State<_PrayerCountdown> {
   }
 
   void _updateTime() {
+    if (!mounted) return;
     if (widget.nextPrayer != null) {
       final now = DateTime.now();
       if (now.isAfter(widget.nextPrayer!.time)) {

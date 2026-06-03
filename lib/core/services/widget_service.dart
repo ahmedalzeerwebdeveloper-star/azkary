@@ -65,6 +65,12 @@ String city = 'المدينة';
       await HomeWidget.saveWidgetData<String>('nextPrayerName', nextName);
       await HomeWidget.saveWidgetData<int>('nextPrayerTimeMillis', nextTimeMillis);
 
+      final tomorrowPrayers = PrayerTimesService.getPrayersForDate(DateTime.now().add(const Duration(days: 1)));
+      if (tomorrowPrayers.isNotEmpty) {
+        await HomeWidget.saveWidgetData<String>('tomorrow_fajr_name', tomorrowPrayers.first.name);
+        await HomeWidget.saveWidgetData<int>('tomorrow_fajr_millis', tomorrowPrayers.first.time.millisecondsSinceEpoch);
+      }
+
       for (var prayer in prayers) {
         String key;
         if (prayer.name == 'الفجر') {
@@ -84,7 +90,8 @@ String city = 'المدينة';
         }
 
         if (key.isNotEmpty) {
-          await HomeWidget.saveWidgetData<String>(key, DateFormat('hh:mm a').format(prayer.time).replaceAll('AM', 'ص').replaceAll('PM', 'م').replaceAll('ص', 'ص').replaceAll('م', 'م'));
+          await HomeWidget.saveWidgetData<String>(key, DateFormat('hh:mm a').format(prayer.time).replaceAll('AM', 'ص').replaceAll('PM', 'م'));
+          await HomeWidget.saveWidgetData<int>('${key}_millis', prayer.time.millisecondsSinceEpoch);
         }
       }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -30,6 +31,40 @@ class NotificationService {
     // Request permissions for Android 13+
     _notificationsPlugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+  }
+
+  static Future<void> testNotification() async {
+    try {
+      _notificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+
+      const androidDetails = AndroidNotificationDetails(
+        'prayer_channel_v2',
+        'مواقيت الصلاة',
+        channelDescription: 'تنبيهات الأذان ومواقيت الصلاة',
+        importance: Importance.max,
+        priority: Priority.high,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('adhan'),
+      );
+
+      await _notificationsPlugin.show(
+        9999,
+        'تم التطوير بواسطة',
+        'أحمد علي الزير',
+        NotificationDetails(
+          android: androidDetails,
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+      );
+      debugPrint('Test notification sent successfully');
+    } catch (e) {
+      debugPrint('Test notification failed: $e');
+    }
   }
 
   static Future<void> schedulePrayerNotifications() async {
@@ -79,12 +114,13 @@ class NotificationService {
         tz.TZDateTime.from(scheduledTime, tz.local),
         const NotificationDetails(
           android: AndroidNotificationDetails(
-            'prayer_channel',
+            'prayer_channel_v2',
             'مواقيت الصلاة',
             channelDescription: 'تنبيهات الأذان ومواقيت الصلاة',
             importance: Importance.max,
             priority: Priority.high,
             playSound: true,
+            sound: RawResourceAndroidNotificationSound('adhan'),
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
@@ -96,7 +132,7 @@ class NotificationService {
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
     } catch (e) {
-      // Fallback to inexact scheduling if exact alarm is denied on Android 14+
+      debugPrint('Exact notification failed for $title at $scheduledTime: $e');
       try {
         await _notificationsPlugin.zonedSchedule(
           id,
@@ -105,12 +141,13 @@ class NotificationService {
           tz.TZDateTime.from(scheduledTime, tz.local),
           const NotificationDetails(
             android: AndroidNotificationDetails(
-              'prayer_channel',
+              'prayer_channel_v2',
               'مواقيت الصلاة',
               channelDescription: 'تنبيهات الأذان ومواقيت الصلاة',
               importance: Importance.max,
               priority: Priority.high,
               playSound: true,
+              sound: RawResourceAndroidNotificationSound('adhan'),
             ),
             iOS: DarwinNotificationDetails(
               presentAlert: true,
@@ -122,7 +159,7 @@ class NotificationService {
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         );
       } catch (e2) {
-        // Failed to schedule notification
+        debugPrint('Inexact fallback also failed for $title: $e2');
       }
     }
   }

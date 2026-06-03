@@ -5,50 +5,66 @@ class LocationService {
   static const String _latKey = 'cached_lat';
   static const String _lngKey = 'cached_lng';
 
-  /// Returns the cached location if available, otherwise requests it
   static Future<Position?> getCurrentPosition() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Test if location services are enabled.
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    try {
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    } catch (_) {
+      return _getCachedPosition(prefs);
+    }
+
     if (!serviceEnabled) {
       return _getCachedPosition(prefs);
     }
 
-    permission = await Geolocator.checkPermission();
+    try {
+      permission = await Geolocator.checkPermission();
+    } catch (_) {
+      return _getCachedPosition(prefs);
+    }
+
     if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+      try {
+        permission = await Geolocator.requestPermission();
+      } catch (_) {
+        return _getCachedPosition(prefs);
+      }
       if (permission == LocationPermission.denied) {
         return _getCachedPosition(prefs);
       }
     }
-    
+
     if (permission == LocationPermission.deniedForever) {
       return _getCachedPosition(prefs);
-    } 
+    }
 
     try {
-      Position? position = await Geolocator.getLastKnownPosition();
+      Position? position;
+      try {
+        position = await Geolocator.getLastKnownPosition();
+      } catch (_) {
+        position = null;
+      }
+
       if (position != null) {
-        // Cache it
         await prefs.setDouble(_latKey, position.latitude);
         await prefs.setDouble(_lngKey, position.longitude);
         return position;
       }
-      
+
       position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
+          accuracy: LocationAccuracy.low,
         ),
-      ).timeout(const Duration(seconds: 4));
-      
-      // Cache it
+      );
+
       await prefs.setDouble(_latKey, position.latitude);
       await prefs.setDouble(_lngKey, position.longitude);
-      
+
       return position;
     } catch (e) {
       return _getCachedPosition(prefs);
