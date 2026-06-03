@@ -23,8 +23,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   PrayerData? _nextPrayer;
   List<PrayerData> _todayPrayers = [];
   Timer? _prayerCheckTimer;
-  int _testTapCount = 0;
-
   @override
   void initState() {
     super.initState();
@@ -190,46 +188,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: GestureDetector(
-                onTap: () {
-                  _testTapCount++;
-                  if (_testTapCount >= 5) {
-                    _testTapCount = 0;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('إشعار فوري - تم التطوير بواسطة أحمد علي الزير'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                    NotificationService.testNotification();
-                  }
-                  Future.delayed(const Duration(seconds: 5), () {
-                    _testTapCount = 0;
-                  });
-                },
-                onLongPress: () {
-                  _testTapCount = 0;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('اختبار الإشعار المجدول... انتظر 15 ثانية'),
-                      duration: Duration(seconds: 3),
-                    ),
-                  );
-                  NotificationService.scheduleDebugTimerTest();
-                },
-                child: Text(
-                  'Ahmed Alzeer',
-                  style: TextStyle(
-                    color: AppTheme.primary.withValues(alpha: 0.5),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 2,
-                  ),
-                ),
-              ),
-            ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
