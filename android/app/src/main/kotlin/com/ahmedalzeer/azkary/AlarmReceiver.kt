@@ -1,4 +1,4 @@
-package com.ahmed.wird.wird_app
+package com.ahmedalzeer.azkary
 
 import android.app.AlarmManager
 import android.app.Notification

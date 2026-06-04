@@ -5,7 +5,7 @@ import 'prayer_times_service.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
-  static const MethodChannel _alarmChannel = MethodChannel('com.ahmed.wird.wird_app/alarms');
+  static const MethodChannel _alarmChannel = MethodChannel('com.ahmedalzeer.azkary/alarms');
 
   static int _prayerIndex(String name) {
     switch (name) {
@@ -92,7 +92,8 @@ class NotificationService {
             body = 'حان الآن موعد صلاة ${prayer.name} - أقم صلاتك تسعد حياتك';
           }
 
-          final int id = i * 10 + _prayerIndex(prayer.name);
+          final int dateInt = date.year * 10000 + date.month * 100 + date.day;
+          final int id = dateInt * 10 + _prayerIndex(prayer.name);
 
           await _scheduleNotification(
             id: id,

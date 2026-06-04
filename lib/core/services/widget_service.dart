@@ -9,9 +9,9 @@ import 'prayer_times_service.dart';
 import 'location_service.dart';
 
 class WidgetService {
-  static const String appGroupId = 'com.ahmed.wird.wird_app';
+  static const String appGroupId = 'com.ahmedalzeer.azkary';
   static const String androidWidgetName = 'PrayerWidgetProvider';
-  static const _widgetChannel = MethodChannel('com.ahmed.wird.wird_app/widget');
+  static const _widgetChannel = MethodChannel('com.ahmedalzeer.azkary/widget');
 
   static Future<void> init() async {
     try {
@@ -109,7 +109,7 @@ String city = 'المدينة';
       try {
         await HomeWidget.updateWidget(
           name: androidWidgetName,
-          qualifiedAndroidName: 'com.ahmed.wird.wird_app.PrayerWidgetProvider',
+          qualifiedAndroidName: 'com.ahmedalzeer.azkary.PrayerWidgetProvider',
         );
       } catch (_) {
       }

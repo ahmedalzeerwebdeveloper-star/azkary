@@ -10,9 +10,9 @@
 -keep class es.antonborri.home_widget.** { *; }
 
 # Keep our widget provider (referenced from manifest and via Class.forName)
--keep class com.ahmed.wird.wird_app.PrayerWidgetProvider { *; }
--keep class com.ahmed.wird.wird_app.MainActivity { *; }
--keep class com.ahmed.wird.wird_app.AlarmReceiver { *; }
+-keep class com.ahmedalzeer.azkary.PrayerWidgetProvider { *; }
+-keep class com.ahmedalzeer.azkary.MainActivity { *; }
+-keep class com.ahmedalzeer.azkary.AlarmReceiver { *; }
 
 # Keep Play Core (needed by Flutter deferred components)
 -dontwarn com.google.android.play.core.**
