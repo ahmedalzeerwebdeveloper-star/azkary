@@ -20,38 +20,64 @@ class AlarmReceiver : BroadcastReceiver() {
         val prayerName = intent.getStringExtra(EXTRA_PRAYER_NAME) ?: "الصلاة"
         val prayerBody = intent.getStringExtra(EXTRA_PRAYER_BODY) ?: "حان الآن موعد الصلاة"
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0)
-        val soundUri = Uri.parse("android.resource://${context.packageName}/raw/adhan")
+        val playAdhan = isAdhanEnabled(context)
+        val soundUri = if (playAdhan) {
+            Uri.parse("android.resource://${context.packageName}/raw/adhan")
+        } else {
+            null
+        }
 
-        ensureChannel(context, soundUri)
+        ensureChannel(context, soundUri, playAdhan)
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, channelId(playAdhan))
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("نداء الصلاة")
-            .setContentText("$prayerName - $prayerBody")
-            .setSound(soundUri)
+            .setContentTitle("نداء الصلاة - $prayerName")
+            .setContentText(prayerBody)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .build()
+
+        if (playAdhan && soundUri != null) {
+            builder.setSound(soundUri)
+        } else {
+            builder.setSilent(true)
+        }
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(notificationId, notification)
+        notificationManager.notify(notificationId, builder.build())
 
-        playAdhanSound(context)
+        if (playAdhan) {
+            playAdhanSound(context)
+        }
+
+        WidgetUpdateScheduler.triggerUpdate(context)
     }
 
-    private fun ensureChannel(context: Context, soundUri: Uri) {
+    private fun isAdhanEnabled(context: Context): Boolean {
+        val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        return prefs.getBoolean("flutter.play_adhan", true)
+    }
+
+    private fun channelId(playAdhan: Boolean): String {
+        return if (playAdhan) CHANNEL_ID_ADHAN else CHANNEL_ID_SILENT
+    }
+
+    private fun ensureChannel(context: Context, soundUri: Uri?, playAdhan: Boolean) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH
-            ).apply {
+            val id = channelId(playAdhan)
+            val name = if (playAdhan) CHANNEL_NAME_ADHAN else CHANNEL_NAME_SILENT
+            val channel = NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH).apply {
                 description = CHANNEL_DESC
-                setSound(soundUri, AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build())
                 enableVibration(true)
                 setShowBadge(true)
+                if (playAdhan && soundUri != null) {
+                    setSound(soundUri, AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build())
+                } else {
+                    setSound(null, null)
+                }
             }
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
@@ -60,7 +86,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
     private fun playAdhanSound(context: Context) {
         try {
-            val mediaPlayer = MediaPlayer().apply {
+            MediaPlayer().apply {
                 setDataSource(context, Uri.parse("android.resource://${context.packageName}/raw/adhan"))
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     setAudioAttributes(AudioAttributes.Builder()
@@ -85,8 +111,10 @@ class AlarmReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        private const val CHANNEL_ID = "prayer_channel_v2"
-        private const val CHANNEL_NAME = "مواقيت الصلاة"
+        private const val CHANNEL_ID_ADHAN = "prayer_channel_v2"
+        private const val CHANNEL_ID_SILENT = "prayer_channel_silent"
+        private const val CHANNEL_NAME_ADHAN = "مواقيت الصلاة - أذان"
+        private const val CHANNEL_NAME_SILENT = "مواقيت الصلاة - إشعار"
         private const val CHANNEL_DESC = "تنبيهات الأذان ومواقيت الصلاة"
         private const val EXTRA_PRAYER_NAME = "prayer_name"
         private const val EXTRA_PRAYER_BODY = "prayer_body"

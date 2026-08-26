@@ -53,18 +53,8 @@ String city = 'المدينة';
       final today = HijriCalendar.now();
       String hijriDate = '${today.hDay} ${today.longMonthName} ${today.hYear}';
 
-      final nextPrayer = PrayerTimesService.getNextPrayer();
-      String nextName = nextPrayer?.name ?? '';
-      int nextTimeMillis = 0;
-      if (nextPrayer != null) {
-          nextTimeMillis = nextPrayer.time.millisecondsSinceEpoch;
-      }
-
       await HomeWidget.saveWidgetData<String>('city', city);
       await HomeWidget.saveWidgetData<String>('hijri', hijriDate);
-      await HomeWidget.saveWidgetData<String>('nextPrayerName', nextName);
-      await HomeWidget.saveWidgetData<int>('nextPrayerTimeMillis', nextTimeMillis);
-
       final tomorrowPrayers = PrayerTimesService.getPrayersForDate(DateTime.now().add(const Duration(days: 1)));
       if (tomorrowPrayers.isNotEmpty) {
         await HomeWidget.saveWidgetData<String>('tomorrow_fajr_name', tomorrowPrayers.first.name);

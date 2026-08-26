@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'prayer_times_service.dart';
+import 'settings_service.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -40,20 +41,36 @@ class NotificationService {
         AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
   }
 
-  static Future<void> testNotification() async {
-    try {
-      _notificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
-
-      const androidDetails = AndroidNotificationDetails(
+  static Future<AndroidNotificationDetails> _androidDetails({bool? playAdhan}) async {
+    final withAdhan = playAdhan ?? await SettingsService.getPlayAdhan();
+    if (withAdhan) {
+      return const AndroidNotificationDetails(
         'prayer_channel_v2',
-        'مواقيت الصلاة',
+        'مواقيت الصلاة - أذان',
         channelDescription: 'تنبيهات الأذان ومواقيت الصلاة',
         importance: Importance.max,
         priority: Priority.high,
         playSound: true,
         sound: RawResourceAndroidNotificationSound('adhan'),
       );
+    }
+    return const AndroidNotificationDetails(
+      'prayer_channel_silent',
+      'مواقيت الصلاة - إشعار',
+      channelDescription: 'إشعارات صلاة بدون أذان',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: false,
+      enableVibration: true,
+    );
+  }
+
+  static Future<void> testNotification() async {
+    try {
+      _notificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+
+      final androidDetails = await _androidDetails();
 
       await _notificationsPlugin.show(
         9999,
@@ -61,7 +78,7 @@ class NotificationService {
         'أحمد علي الزير',
         NotificationDetails(
           android: androidDetails,
-          iOS: DarwinNotificationDetails(
+          iOS: const DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: true,
             presentSound: true,
@@ -110,50 +127,16 @@ class NotificationService {
 
   static Future<void> triggerPrayerNotification(String prayerName, String body) async {
     try {
+      final androidDetails = await _androidDetails();
       await _notificationsPlugin.show(
         7777,
         'نداء الصلاة - $prayerName',
         body,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'prayer_channel_v2',
-            'مواقيت الصلاة',
-            channelDescription: 'تنبيهات الأذان ومواقيت الصلاة',
-            importance: Importance.max,
-            priority: Priority.high,
-            playSound: true,
-            sound: RawResourceAndroidNotificationSound('adhan'),
-          ),
-        ),
+        NotificationDetails(android: androidDetails),
       );
     } catch (e) {
       debugPrint('Prayer notification failed: $e');
     }
-  }
-
-  static void scheduleDebugTimerTest({int secondsFromNow = 15}) {
-    Future.delayed(Duration(seconds: secondsFromNow), () async {
-      try {
-        await _notificationsPlugin.show(
-          8887,
-          'اختبار التأخير',
-          'ظهر بعد $secondsFromNow ثانية - الإشعارات شغالة',
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'prayer_channel_v2',
-              'مواقيت الصلاة',
-              channelDescription: 'تنبيهات الأذان ومواقيت الصلاة',
-              importance: Importance.max,
-              priority: Priority.high,
-              playSound: true,
-              sound: RawResourceAndroidNotificationSound('adhan'),
-            ),
-          ),
-        );
-      } catch (e) {
-        debugPrint('Timer test failed: $e');
-      }
-    });
   }
 
   static Future<void> _scheduleNotification({

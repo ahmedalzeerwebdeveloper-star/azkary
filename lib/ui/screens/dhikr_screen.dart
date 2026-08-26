@@ -50,22 +50,13 @@ class _DhikrScreenState extends State<DhikrScreen> {
           preferredSize: const Size.fromHeight(4.0),
           child: LinearProgressIndicator(
             value: (_currentPage + 1) / widget.category.adhkar.length,
-            backgroundColor: AppTheme.surface,
-            valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
+            backgroundColor: Theme.of(context).cardTheme.color ?? AppTheme.surface,
+            valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
           ),
         ),
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.background,
-              AppTheme.surface,
-            ],
-          ),
-        ),
+        color: Theme.of(context).scaffoldBackgroundColor,
         child: Column(
           children: [
             Padding(
@@ -73,7 +64,7 @@ class _DhikrScreenState extends State<DhikrScreen> {
               child: Text(
                 '${_currentPage + 1} / ${widget.category.adhkar.length}',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.primary,
+                  color: Theme.of(context).primaryColor,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -96,18 +87,6 @@ class _DhikrScreenState extends State<DhikrScreen> {
                     ),
                   );
                 },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: Text(
-                'Ahmed Alzeer',
-                style: TextStyle(
-                  color: AppTheme.primary.withValues(alpha: 0.5),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 2,
-                ),
               ),
             ),
           ],

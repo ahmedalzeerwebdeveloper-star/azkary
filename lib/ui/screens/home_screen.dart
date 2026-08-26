@@ -10,6 +10,7 @@ import '../../core/services/notification_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dhikr_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -104,36 +105,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _startPrayerCheck() {
     _prayerCheckTimer?.cancel();
-    _prayerCheckTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+    
+    final nextPrayer = PrayerTimesService.getNextPrayer();
+    if (nextPrayer == null) return;
+
+    final now = DateTime.now();
+    final durationUntilNext = nextPrayer.time.difference(now);
+
+    // Schedule timer to trigger right at prayer time (or in 10 minutes max to stay fresh)
+    final delay = durationUntilNext.isNegative 
+        ? const Duration(seconds: 5)
+        : (durationUntilNext > const Duration(minutes: 10) 
+            ? const Duration(minutes: 10) 
+            : durationUntilNext + const Duration(seconds: 1));
+
+    _prayerCheckTimer = Timer(delay, () async {
       if (!mounted) return;
 
       PrayerTimesService.refreshIfDayChanged();
+      final updatedNextPrayer = PrayerTimesService.getNextPrayer();
 
-      final nextPrayer = PrayerTimesService.getNextPrayer();
-      if (nextPrayer == null) return;
+      if (updatedNextPrayer != null && _nextPrayer != null && 
+          (updatedNextPrayer.name != _nextPrayer!.name || updatedNextPrayer.time != _nextPrayer!.time)) {
+        
+        String body = updatedNextPrayer.name == 'الفجر'
+            ? 'الصلاة خير من النوم - قم ولبِّ نداء الله'
+            : 'حان الآن موعد صلاة ${updatedNextPrayer.name} - أقم صلاتك تسعد حياتك';
 
-      final now = DateTime.now();
-      final needsUpdate = _nextPrayer == null ||
-          now.isAfter(_nextPrayer!.time) ||
-          nextPrayer.name != _nextPrayer!.name;
-
-      if (needsUpdate) {
-        if (_nextPrayer != null && now.isAfter(_nextPrayer!.time) && now.difference(_nextPrayer!.time).inSeconds < 20) {
-          String body;
-          if (_nextPrayer!.name == 'الفجر') {
-            body = 'الصلاة خير من النوم - قم ولبِّ نداء الله';
-          } else {
-            body = 'حان الآن موعد صلاة ${_nextPrayer!.name} - أقم صلاتك تسعد حياتك';
-          }
-          NotificationService.triggerPrayerNotification(_nextPrayer!.name, body);
-        }
+        NotificationService.triggerPrayerNotification(updatedNextPrayer.name, body);
         await WidgetService.updateWidget();
-        if (!mounted) return;
-        setState(() {
-          _nextPrayer = nextPrayer;
-          _todayPrayers = PrayerTimesService.getTodayPrayers();
-        });
+
+        if (mounted) {
+          setState(() {
+            _nextPrayer = updatedNextPrayer;
+            _todayPrayers = PrayerTimesService.getTodayPrayers();
+          });
+        }
       }
+      _startPrayerCheck(); // Schedule next check
     });
   }
 
@@ -143,18 +152,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       appBar: AppBar(
         title: const Text('أذكاري'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_rounded),
+            tooltip: 'الإعدادات',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.background,
-              AppTheme.surface,
-            ],
-          ),
-        ),
+        color: Theme.of(context).scaffoldBackgroundColor,
         child: Column(
           children: [
             _buildPrayerHeader(),
@@ -196,16 +208,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildPrayerHeader() {
+    final primaryColor = Theme.of(context).primaryColor;
+    final cardColor = Theme.of(context).cardTheme.color ?? AppTheme.surface;
+
     if (_isLoadingLocation) {
       return Container(
         height: 220,
         margin: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
+          color: cardColor,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.5)),
+          border: Border.all(color: primaryColor.withValues(alpha: 0.5)),
         ),
-        child: const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+        child: Center(child: CircularProgressIndicator(color: primaryColor)),
       );
     }
 
@@ -214,32 +229,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         height: 220,
         margin: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
+          color: cardColor,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.5)),
+          border: Border.all(color: primaryColor.withValues(alpha: 0.5)),
         ),
-        child: const Center(child: Text('يرجى تفعيل الموقع لمعرفة أوقات الصلاة', style: TextStyle(color: AppTheme.textPrimary))),
+        child: Center(child: Text('يرجى تفعيل الموقع لمعرفة أوقات الصلاة', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color))),
       );
     }
 
+    final isLight = Theme.of(context).brightness == Brightness.light;
+
     return Container(
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppTheme.primary,
-            AppTheme.primary.withValues(alpha: 0.7),
-          ],
+          colors: isLight
+              ? [const Color(0xFFC58B43), const Color(0xFFA66E28)]
+              : [const Color(0xFF1E2D42), const Color(0xFF111A28)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: primaryColor.withValues(alpha: isLight ? 0.3 : 0.4),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primary.withValues(alpha: 0.4),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            color: isLight
+                ? primaryColor.withValues(alpha: 0.25)
+                : Colors.black.withValues(alpha: 0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -280,28 +302,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 16),
           SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             scrollDirection: Axis.horizontal,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: _todayPrayers.map((prayer) {
                 final isNext = prayer.name == _nextPrayer!.name;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+                  decoration: BoxDecoration(
+                    color: isNext
+                        ? Colors.white.withValues(alpha: 0.25)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isNext ? Colors.white.withValues(alpha: 0.6) : Colors.transparent,
+                      width: 1,
+                    ),
+                  ),
                   child: Column(
                     children: [
                       Text(
                         prayer.name,
                         style: TextStyle(
-                          color: isNext ? Colors.white : Colors.white.withValues(alpha: 0.6),
-                          fontWeight: isNext ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 14,
+                          color: isNext ? Colors.white : Colors.white.withValues(alpha: 0.7),
+                          fontWeight: isNext ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 13,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        DateFormat('hh:mm a').format(prayer.time),
+                        DateFormat('hh:mm a').format(prayer.time).replaceAll('AM', 'ص').replaceAll('PM', 'م'),
                         style: TextStyle(
-                          color: isNext ? Colors.white : Colors.white.withValues(alpha: 0.6),
+                          color: isNext ? Colors.white : Colors.white.withValues(alpha: 0.7),
                           fontWeight: isNext ? FontWeight.bold : FontWeight.normal,
                           fontSize: 12,
                         ),
@@ -328,13 +362,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case 'mosque':
         return Icons.mosque_rounded;
       case 'beads':
-        return Icons.flutter_dash_rounded;
+        return Icons.auto_awesome_rounded;
       case 'bed':
         return Icons.bed_rounded;
       case 'quran':
         return Icons.auto_stories_rounded;
       case 'pray':
         return Icons.self_improvement_rounded;
+      case 'home':
+        return Icons.home_rounded;
+      case 'travel':
+        return Icons.explore_rounded;
+      case 'rain':
+        return Icons.thunderstorm_rounded;
+      case 'food':
+        return Icons.restaurant_rounded;
+      case 'water':
+        return Icons.water_drop_rounded;
+      case 'heart':
+        return Icons.favorite_rounded;
+      case 'shield':
+        return Icons.shield_rounded;
       default:
         return Icons.star_rounded;
     }
@@ -352,11 +400,12 @@ class _PrayerCountdown extends StatefulWidget {
 
 class _PrayerCountdownState extends State<_PrayerCountdown> {
   Timer? _timer;
-  Duration _timeUntilNextPrayer = Duration.zero;
+  late final ValueNotifier<Duration> _durationNotifier;
 
   @override
   void initState() {
     super.initState();
+    _durationNotifier = ValueNotifier<Duration>(Duration.zero);
     _startCountdown();
   }
 
@@ -379,9 +428,9 @@ class _PrayerCountdownState extends State<_PrayerCountdown> {
     if (widget.nextPrayer != null) {
       final now = DateTime.now();
       if (now.isAfter(widget.nextPrayer!.time)) {
-        setState(() => _timeUntilNextPrayer = Duration.zero);
+        _durationNotifier.value = Duration.zero;
       } else {
-        setState(() => _timeUntilNextPrayer = widget.nextPrayer!.time.difference(now));
+        _durationNotifier.value = widget.nextPrayer!.time.difference(now);
       }
     }
   }
@@ -389,14 +438,20 @@ class _PrayerCountdownState extends State<_PrayerCountdown> {
   @override
   void dispose() {
     _timer?.cancel();
+    _durationNotifier.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      _formatDuration(_timeUntilNextPrayer),
-      style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+    return ValueListenableBuilder<Duration>(
+      valueListenable: _durationNotifier,
+      builder: (context, duration, _) {
+        return Text(
+          _formatDuration(duration),
+          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+        );
+      },
     );
   }
 
@@ -406,7 +461,7 @@ class _PrayerCountdownState extends State<_PrayerCountdown> {
   }
 }
 
-class _CategoryCard extends StatelessWidget {
+class _CategoryCard extends StatefulWidget {
   final String title;
   final IconData iconData;
   final VoidCallback onTap;
@@ -418,46 +473,85 @@ class _CategoryCard extends StatelessWidget {
   });
 
   @override
+  State<_CategoryCard> createState() => _CategoryCardState();
+}
+
+class _CategoryCardState extends State<_CategoryCard> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).primaryColor;
+    final cardColor = Theme.of(context).cardTheme.color ?? AppTheme.surface;
+    final isLight = Theme.of(context).brightness == Brightness.light;
+
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.5)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            )
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                iconData,
-                size: 40,
-                color: AppTheme.primary,
-              ),
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.94 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: primaryColor.withValues(alpha: isLight ? 0.2 : 0.3),
+              width: 1.2,
             ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+            boxShadow: [
+              BoxShadow(
+                color: isLight
+                    ? primaryColor.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.25),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              )
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      primaryColor.withValues(alpha: 0.18),
+                      primaryColor.withValues(alpha: 0.06),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: primaryColor.withValues(alpha: 0.2),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  widget.iconData,
+                  size: 38,
+                  color: primaryColor,
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+              const SizedBox(height: 14),
+              Text(
+                widget.title,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -3,9 +3,7 @@ package com.ahmedalzeer.azkary
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
-import android.content.SharedPreferences
 import android.content.Intent
-import android.widget.RemoteViews
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -70,23 +68,5 @@ class MainActivity : FlutterActivity() {
             }
             context.sendBroadcast(intent)
         }
-    }
-
-    private fun findNextPrayer(data: SharedPreferences, now: Long): Pair<String, Long> {
-        val prayers = listOf(
-            "الفجر" to data.getLong("fajr_millis", 0L),
-            "الظهر" to data.getLong("dhuhr_millis", 0L),
-            "العصر" to data.getLong("asr_millis", 0L),
-            "المغرب" to data.getLong("maghrib_millis", 0L),
-            "العشاء" to data.getLong("isha_millis", 0L),
-        )
-        for ((name, millis) in prayers) {
-            if (millis > now) return name to millis
-        }
-        val tomorrowFajr = data.getLong("tomorrow_fajr_millis", 0L)
-        if (tomorrowFajr > now) {
-            return (data.getString("tomorrow_fajr_name", "الفجر") ?: "الفجر") to tomorrowFajr
-        }
-        return "الفجر" to 0L
     }
 }

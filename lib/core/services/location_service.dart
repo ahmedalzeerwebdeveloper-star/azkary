@@ -4,9 +4,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocationService {
   static const String _latKey = 'cached_lat';
   static const String _lngKey = 'cached_lng';
+  static const String _timeKey = 'cached_time';
 
   static Future<Position?> getCurrentPosition() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // 1. Check if we have valid cached position (< 6 hours old)
+    final cachedTime = prefs.getInt(_timeKey);
+    if (cachedTime != null) {
+      final cacheDate = DateTime.fromMillisecondsSinceEpoch(cachedTime);
+      if (DateTime.now().difference(cacheDate).inHours < 6) {
+        final position = _getCachedPosition(prefs);
+        if (position != null) return position;
+      }
+    }
 
     bool serviceEnabled;
     LocationPermission permission;
@@ -53,6 +64,7 @@ class LocationService {
       if (position != null) {
         await prefs.setDouble(_latKey, position.latitude);
         await prefs.setDouble(_lngKey, position.longitude);
+        await prefs.setInt(_timeKey, DateTime.now().millisecondsSinceEpoch);
         return position;
       }
 
@@ -64,6 +76,7 @@ class LocationService {
 
       await prefs.setDouble(_latKey, position.latitude);
       await prefs.setDouble(_lngKey, position.longitude);
+      await prefs.setInt(_timeKey, DateTime.now().millisecondsSinceEpoch);
 
       return position;
     } catch (e) {
