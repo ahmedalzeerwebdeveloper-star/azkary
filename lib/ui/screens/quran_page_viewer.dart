@@ -613,11 +613,11 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
 
     return Scaffold(
       backgroundColor: screenBgColor,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // PageView displaying Quran images (RTL) with interactive touch & pinch-zoom
-            Directionality(
+      body: Stack(
+        children: [
+          // PageView displaying Quran images (RTL) with interactive touch & pinch-zoom (Full Screen)
+          Positioned.fill(
+            child: Directionality(
               textDirection: TextDirection.rtl,
               child: PageView.builder(
                 controller: _pageController,
@@ -636,6 +636,8 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                             child: _applyColorFilter(
                               Image.asset(
                                 'assets/quran_pages/$pageNum.png',
+                                width: double.infinity,
+                                height: double.infinity,
                                 fit: BoxFit.contain,
                                 errorBuilder: (context, error, stackTrace) {
                                   return Center(
@@ -662,48 +664,170 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                 },
               ),
             ),
+          ),
 
-            // Top Header Bar
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 250),
-              top: _showControls ? 0 : -90,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: (isDark ? AppTheme.surface : AppTheme.lightSurface).withValues(alpha: 0.95),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
+          // Top Header Bar (Floating overlay with SafeArea)
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            top: _showControls ? 0 : -140,
+            left: 0,
+            right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: (isDark ? AppTheme.surface : AppTheme.lightSurface).withValues(alpha: 0.95),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        color: primaryColor,
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              surahName.isNotEmpty ? surahName : 'المصحف الشريف',
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
+                            Text(
+                              'الجزء $juzNumber • صفحة $_currentPage',
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 12,
+                                color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.palette_outlined),
+                        color: primaryColor,
+                        tooltip: 'وضع القراءة',
+                        onPressed: _showColorFilterDialog,
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                          color: _isBookmarked ? primaryColor : null,
+                        ),
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final res = await QuranService.toggleBookmark(_currentPage);
+                          if (!mounted) return;
+                          setState(() {
+                            _isBookmarked = res;
+                          });
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                res ? 'تمت إضافة العلامة لصفحة $_currentPage' : 'تم حذف العلامة',
+                                style: const TextStyle(fontFamily: 'Cairo'),
+                              ),
+                              duration: const Duration(seconds: 1),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.list_alt),
+                        color: primaryColor,
+                        onPressed: () async {
+                          final selectedPage = await Navigator.push<int>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => QuranIndexScreen(currentPage: _currentPage),
+                            ),
+                          );
+                          if (selectedPage != null) {
+                            _jumpToPage(selectedPage);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      color: primaryColor,
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
+              ),
+            ),
+          ),
+
+          // Bottom Navigation & Fast Page Slider Bar (Floating overlay with SafeArea)
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            bottom: _showControls ? 0 : -160,
+            left: 0,
+            right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: (isDark ? AppTheme.surface : AppTheme.lightSurface).withValues(alpha: 0.95),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Fast Page Slider
+                      Row(
                         children: [
                           Text(
-                            surahName.isNotEmpty ? surahName : 'المصحف الشريف',
+                            '1',
                             style: TextStyle(
                               fontFamily: 'Cairo',
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: primaryColor,
+                              fontSize: 12,
+                              color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                            ),
+                          ),
+                          Expanded(
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: primaryColor,
+                                thumbColor: primaryColor,
+                                inactiveTrackColor: primaryColor.withValues(alpha: 0.2),
+                                trackHeight: 3,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                              ),
+                              child: Slider(
+                                value: _currentPage.toDouble(),
+                                min: 1,
+                                max: 604,
+                                onChanged: (val) {
+                                  _jumpToPage(val.round());
+                                },
+                              ),
                             ),
                           ),
                           Text(
-                            'الجزء $juzNumber • صفحة $_currentPage',
+                            '604',
                             style: TextStyle(
                               fontFamily: 'Cairo',
                               fontSize: 12,
@@ -712,149 +836,39 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                           ),
                         ],
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.palette_outlined),
-                      color: primaryColor,
-                      tooltip: 'وضع القراءة',
-                      onPressed: _showColorFilterDialog,
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                        color: _isBookmarked ? primaryColor : null,
-                      ),
-                      onPressed: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        final res = await QuranService.toggleBookmark(_currentPage);
-                        if (!mounted) return;
-                        setState(() {
-                          _isBookmarked = res;
-                        });
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              res ? 'تمت إضافة العلامة لصفحة $_currentPage' : 'تم حذف العلامة',
-                              style: const TextStyle(fontFamily: 'Cairo'),
-                            ),
-                            duration: const Duration(seconds: 1),
-                          ),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.list_alt),
-                      color: primaryColor,
-                      onPressed: () async {
-                        final selectedPage = await Navigator.push<int>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => QuranIndexScreen(currentPage: _currentPage),
-                          ),
-                        );
-                        if (selectedPage != null) {
-                          _jumpToPage(selectedPage);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Bottom Navigation & Fast Page Slider Bar
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 250),
-              bottom: _showControls ? 0 : -110,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: (isDark ? AppTheme.surface : AppTheme.lightSurface).withValues(alpha: 0.95),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 10,
-                      offset: const Offset(0, -3),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Fast Page Slider
-                    Row(
-                      children: [
-                        Text(
-                          '1',
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 12,
-                            color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
-                          ),
-                        ),
-                        Expanded(
-                          child: SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              activeTrackColor: primaryColor,
-                              thumbColor: primaryColor,
-                              inactiveTrackColor: primaryColor.withValues(alpha: 0.2),
-                              trackHeight: 3,
-                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                            ),
-                            child: Slider(
-                              value: _currentPage.toDouble(),
-                              min: 1,
-                              max: 604,
-                              onChanged: (val) {
-                                _jumpToPage(val.round());
-                              },
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          TextButton.icon(
+                            onPressed: _showFullPageTafsir,
+                            icon: Icon(Icons.auto_stories, color: primaryColor, size: 20),
+                            label: Text(
+                              'تفسير الصفحة',
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                              ),
                             ),
                           ),
-                        ),
-                        Text(
-                          '604',
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 12,
-                            color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        TextButton.icon(
-                          onPressed: _showFullPageTafsir,
-                          icon: Icon(Icons.auto_stories, color: primaryColor, size: 20),
-                          label: Text(
-                            'تفسير الصفحة',
+                          Container(height: 20, width: 1, color: Colors.grey.withValues(alpha: 0.3)),
+                          Text(
+                            'اضغط على أي آية لعرض تفسيرها',
                             style: TextStyle(
                               fontFamily: 'Cairo',
-                              fontWeight: FontWeight.bold,
-                              color: primaryColor,
+                              fontSize: 12,
+                              color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
                             ),
                           ),
-                        ),
-                        Container(height: 20, width: 1, color: Colors.grey.withValues(alpha: 0.3)),
-                        Text(
-                          'اضغط على أي آية لعرض تفسيرها',
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 12,
-                            color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
