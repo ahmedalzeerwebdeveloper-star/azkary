@@ -126,12 +126,12 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
     }
 
     final localPos = details.localPosition;
-    // Map local coordinates (based on 456 x 672 standard page viewBox)
+    // Map local coordinates (based on 622 x 917 standard high-resolution page)
     final renderWidth = constraints.maxWidth;
     final renderHeight = constraints.maxHeight;
 
-    const sourceWidth = 456.0;
-    const sourceHeight = 672.0;
+    const sourceWidth = 622.0;
+    const sourceHeight = 917.0;
 
     // Coordinate mapping for full-screen BoxFit.fill (occupying full screen width and height)
     final scaleX = renderWidth / sourceWidth;
