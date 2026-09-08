@@ -149,12 +149,12 @@ class AboutDeveloperScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'اللهم اغفر لوالدي وارحمه، وعافه واعف عنه، وأكرم نزله ووسّع مدخله، واجعل هذا العمل صدقة جارية في ميزان حسناته.',
+                    '«رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا»\nاللهم اغفر لوالديَّ (أمي وأبي) وارحمهما، وعافهما واعف عنهما، وأكرم نزلهما ووسّع مدخلهما، واجعل هذا العمل صدقة جارية في ميزان حسناتهما.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 14,
-                      height: 1.7,
+                      height: 1.8,
                       color: isDark ? Colors.grey.shade200 : const Color(0xFF2C3E50),
                     ),
                   ),
@@ -166,7 +166,7 @@ class AboutDeveloperScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(30),
                     ),
                     child: Text(
-                      'نسألكم الدعاء له بالرحمة والمغفرة',
+                      'نسألكم الدعاء لهما بالرحمة والمغفرة',
                       style: TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 13,
