@@ -151,17 +151,10 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
       return;
     }
 
-    // Scale to SVG polygon viewBox space (-53.31 to 291.69, -198.48 to 351.52)
-    // Normalized viewBox: 345 width, 550 height
-    final viewBoxX = (imageX / sourceWidth) * 345.0 - 53.31;
-    final viewBoxY = (imageY / sourceHeight) * 550.0 - 198.48;
-
+    // Direct image coordinate check using pre-transformed 456x672 page coordinates
     AyahBoundModel? foundAyah;
     for (final b in bounds) {
-      if (viewBoxX >= (b.minX - 8) &&
-          viewBoxX <= (b.maxX + 8) &&
-          viewBoxY >= (b.minY - 4) &&
-          viewBoxY <= (b.maxY + 4)) {
+      if (b.containsPoint(imageX, imageY)) {
         foundAyah = b;
         break;
       }

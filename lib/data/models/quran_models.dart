@@ -108,6 +108,7 @@ class AyahBoundModel {
   final double maxX;
   final double minY;
   final double maxY;
+  final List<List<List<double>>> polygons;
 
   const AyahBoundModel({
     required this.sura,
@@ -116,9 +117,24 @@ class AyahBoundModel {
     required this.maxX,
     required this.minY,
     required this.maxY,
+    this.polygons = const [],
   });
 
   factory AyahBoundModel.fromJson(Map<String, dynamic> json) {
+    List<List<List<double>>> parsedPolygons = [];
+    if (json['polygons'] != null) {
+      final rawPolys = json['polygons'] as List<dynamic>;
+      for (final p in rawPolys) {
+        final pts = (p as List<dynamic>).map((pt) {
+          final pair = pt as List<dynamic>;
+          return [(pair[0] as num).toDouble(), (pair[1] as num).toDouble()];
+        }).toList();
+        if (pts.isNotEmpty) {
+          parsedPolygons.add(pts);
+        }
+      }
+    }
+
     return AyahBoundModel(
       sura: json['sura'] as int,
       aya: json['aya'] as int,
@@ -126,10 +142,56 @@ class AyahBoundModel {
       maxX: (json['max_x'] as num).toDouble(),
       minY: (json['min_y'] as num).toDouble(),
       maxY: (json['max_y'] as num).toDouble(),
+      polygons: parsedPolygons,
     );
   }
 
+  /// Checks if point (x, y) is inside the ayah in 456x672 page coordinates
   bool containsPoint(double x, double y) {
-    return x >= minX && x <= maxX && y >= minY && y <= maxY;
+    // Fast bounding box check with slight touch tolerance (±4px)
+    if (x < (minX - 4) || x > (maxX + 4) || y < (minY - 4) || y > (maxY + 4)) {
+      return false;
+    }
+
+    // If polygons are available, test each line segment polygon
+    if (polygons.isNotEmpty) {
+      for (final poly in polygons) {
+        if (_pointInPolygon(x, y, poly)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    return true;
+  }
+
+  static bool _pointInPolygon(double x, double y, List<List<double>> poly) {
+    final n = poly.length;
+    if (n < 3) return false;
+    bool inside = false;
+    double p1x = poly[0][0];
+    double p1y = poly[0][1];
+
+    for (int i = 0; i <= n; i++) {
+      final p2x = poly[i % n][0];
+      final p2y = poly[i % n][1];
+
+      if (y > (p1y < p2y ? p1y : p2y)) {
+        if (y <= (p1y > p2y ? p1y : p2y)) {
+          if (x <= (p1x > p2x ? p1x : p2x)) {
+            if (p1y != p2y) {
+              final xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x;
+              if (p1x == p2x || x <= xinters) {
+                inside = !inside;
+              }
+            }
+          }
+        }
+      }
+      p1x = p2x;
+      p1y = p2y;
+    }
+    return inside;
   }
 }
