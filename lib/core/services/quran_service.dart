@@ -7,6 +7,7 @@ class QuranService {
   static List<SurahModel>? _surahs;
   static List<JuzModel>? _juzs;
   static Map<String, dynamic>? _rawTafsirData;
+  static Map<String, dynamic>? _rawBoundsData;
 
   static const String _lastPageKey = 'quran_last_read_page';
   static const String _bookmarksKey = 'quran_bookmarked_pages';
@@ -35,6 +36,27 @@ class QuranService {
     final pageData = _rawTafsirData?[page.toString()];
     if (pageData == null) return null;
     return PageTafsirModel.fromJson(pageData as Map<String, dynamic>);
+  }
+
+  static Future<List<AyahBoundModel>> getPageAyahBounds(int page) async {
+    if (_rawBoundsData == null) {
+      final jsonStr = await rootBundle.loadString('assets/quran_ayah_bounds.json');
+      _rawBoundsData = json.decode(jsonStr) as Map<String, dynamic>;
+    }
+    final list = _rawBoundsData?[page.toString()] as List<dynamic>?;
+    if (list == null) return [];
+    return list.map((e) => AyahBoundModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static Future<VerseTafsirModel?> getSingleAyahTafsir(int sura, int aya, int page) async {
+    final pageTafsir = await getPageTafsir(page);
+    if (pageTafsir == null) return null;
+    for (final v in pageTafsir.verses) {
+      if (v.sura == sura && v.aya == aya) {
+        return v;
+      }
+    }
+    return null;
   }
 
   static Future<int> getLastReadPage() async {

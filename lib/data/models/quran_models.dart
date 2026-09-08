@@ -100,3 +100,36 @@ class PageTafsirModel {
     );
   }
 }
+
+class AyahBoundModel {
+  final int sura;
+  final int aya;
+  final double minX;
+  final double maxX;
+  final double minY;
+  final double maxY;
+
+  const AyahBoundModel({
+    required this.sura,
+    required this.aya,
+    required this.minX,
+    required this.maxX,
+    required this.minY,
+    required this.maxY,
+  });
+
+  factory AyahBoundModel.fromJson(Map<String, dynamic> json) {
+    return AyahBoundModel(
+      sura: json['sura'] as int,
+      aya: json['aya'] as int,
+      minX: (json['min_x'] as num).toDouble(),
+      maxX: (json['max_x'] as num).toDouble(),
+      minY: (json['min_y'] as num).toDouble(),
+      maxY: (json['max_y'] as num).toDouble(),
+    );
+  }
+
+  bool containsPoint(double x, double y) {
+    return x >= minX && x <= maxX && y >= minY && y <= maxY;
+  }
+}
