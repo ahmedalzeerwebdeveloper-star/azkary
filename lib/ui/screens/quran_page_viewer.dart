@@ -128,7 +128,6 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
     final bounds = _cachedBounds[_currentPage] ?? [];
     if (bounds.isEmpty) return;
 
-    final topPadding = MediaQuery.of(context).padding.top;
     final localPos = details.localPosition;
     final renderWidth = constraints.maxWidth;
     final renderHeight = constraints.maxHeight;
@@ -140,7 +139,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
     final scaleY = renderHeight / sourceHeight;
 
     final imageX = localPos.dx / scaleX;
-    final imageY = (localPos.dy - topPadding) / scaleY;
+    final imageY = localPos.dy / scaleY;
 
     if (imageX < 0 || imageX > sourceWidth || imageY < 0 || imageY > sourceHeight) {
       return;
@@ -593,15 +592,20 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
     } else {
       screenBgColor = const Color(0xFFFDFCFA);
     }
+    final isFilterDark = _colorMode == QuranColorFilterMode.dark;
 
-    return Scaffold(
-      backgroundColor: screenBgColor,
-      body: Stack(
-        children: [
-          // PageView displaying Quran images (RTL) with interactive touch & pinch-zoom (Full Screen)
-          Positioned.fill(
-            child: SafeArea(
-              bottom: false,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isFilterDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isFilterDark ? Brightness.dark : Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: screenBgColor,
+        body: Stack(
+          children: [
+            // PageView displaying Quran images (RTL) with interactive touch & pinch-zoom (Full Screen)
+            Positioned.fill(
               child: Directionality(
                 textDirection: TextDirection.rtl,
                 child: PageView.builder(
@@ -653,7 +657,6 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
               ),
             ),
           ),
-        ),
 
           // Top Header Bar (Floating frosted glass overlay with SafeArea)
           AnimatedPositioned(
@@ -881,6 +884,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
