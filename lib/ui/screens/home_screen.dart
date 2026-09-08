@@ -11,6 +11,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dhikr_screen.dart';
 import 'settings_screen.dart';
+import 'quran_page_viewer.dart';
+import '../../core/services/quran_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -59,6 +61,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     try {
       await Permission.notification.request().timeout(const Duration(seconds: 5));
       await Permission.scheduleExactAlarm.request().timeout(const Duration(seconds: 3));
+
+      // Request battery optimization ignore so widget and alarms never get killed by OEM
+      try {
+        final isIgnored = await WidgetService.isIgnoringBatteryOptimizations();
+        if (!isIgnored) {
+          await WidgetService.requestIgnoreBatteryOptimizations();
+        }
+      } catch (_) {}
 
       var position = await LocationService.getCurrentPosition().timeout(const Duration(seconds: 8));
       position ??= Position(
@@ -152,6 +162,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       appBar: AppBar(
         title: const Text('أذكاري'),
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.menu_book_rounded),
+          tooltip: 'المصحف الشريف',
+          onPressed: () async {
+            final nav = Navigator.of(context);
+            final lastPage = await QuranService.getLastReadPage();
+            nav.push(
+              MaterialPageRoute(
+                builder: (context) => QuranPageViewer(initialPage: lastPage),
+              ),
+            );
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_rounded),
@@ -170,6 +193,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: Column(
           children: [
             _buildPrayerHeader(),
+            _buildQuranBanner(),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -202,6 +226,109 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
             const SizedBox(height: 24),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuranBanner() {
+    final primaryColor = Theme.of(context).primaryColor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+      child: InkWell(
+        onTap: () async {
+          final nav = Navigator.of(context);
+          final lastPage = await QuranService.getLastReadPage();
+          nav.push(
+            MaterialPageRoute(
+              builder: (context) => QuranPageViewer(initialPage: lastPage),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDark
+                  ? [
+                      AppTheme.surface,
+                      AppTheme.surface.withValues(alpha: 0.8),
+                    ]
+                  : [
+                      AppTheme.lightSurface,
+                      AppTheme.lightSurface.withValues(alpha: 0.9),
+                    ],
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: primaryColor.withValues(alpha: 0.4),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: primaryColor.withValues(alpha: 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: primaryColor.withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: Icon(
+                  Icons.menu_book_rounded,
+                  color: primaryColor,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'المصحف الشريف',
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor,
+                      ),
+                    ),
+                    Text(
+                      'تصفح المصحف كاملاً مع التفسير الميسر',
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 12,
+                        color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: primaryColor,
+                size: 18,
+              ),
+            ],
+          ),
         ),
       ),
     );

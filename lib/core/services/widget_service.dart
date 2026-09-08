@@ -85,6 +85,10 @@ String city = 'المدينة';
         }
       }
 
+      // Mark data as fresh so the native widget knows not to recalculate
+      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      await HomeWidget.saveWidgetData<String>('last_update_day', todayStr);
+
       _updateWidgetAppearance();
     } catch (_) {
     }
@@ -103,6 +107,22 @@ String city = 'المدينة';
         );
       } catch (_) {
       }
+    }
+  }
+
+  static Future<bool> isIgnoringBatteryOptimizations() async {
+    try {
+      final result = await _widgetChannel.invokeMethod<bool>('isIgnoringBatteryOptimizations');
+      return result ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  static Future<void> requestIgnoreBatteryOptimizations() async {
+    try {
+      await _widgetChannel.invokeMethod('requestIgnoreBatteryOptimizations');
+    } catch (_) {
     }
   }
 }

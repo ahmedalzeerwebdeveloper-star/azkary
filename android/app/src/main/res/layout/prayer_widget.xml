@@ -124,7 +124,7 @@
         <!-- Maghrib -->
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="المغرب" android:textColor="#424242" android:textSize="10sp"/>
-            <TextView android:id="@+id/tv_maghrib" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#ff8f00" android:textSize="12sp" android:textStyle="bold"/>
+            <TextView android:id="@+id/tv_maghrib" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#757575" android:textSize="12sp" android:textStyle="bold"/>
         </LinearLayout>
         
         <FrameLayout android:layout_width="1dp" android:layout_height="match_parent" android:background="#E0E0E0" android:layout_marginVertical="4dp"/>

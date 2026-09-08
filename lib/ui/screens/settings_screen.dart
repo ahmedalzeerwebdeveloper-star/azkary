@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../core/services/settings_service.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/widget_service.dart';
 import '../../main.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -11,24 +12,48 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObserver {
   bool _playAdhan = true;
   ThemeMode _themeMode = ThemeMode.dark;
+  bool _isBatteryIgnored = true;
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkBatteryStatus();
+    }
+  }
+
+  Future<void> _checkBatteryStatus() async {
+    final isIgnored = await WidgetService.isIgnoringBatteryOptimizations();
+    if (mounted) {
+      setState(() => _isBatteryIgnored = isIgnored);
+    }
   }
 
   Future<void> _loadSettings() async {
     final playAdhan = await SettingsService.getPlayAdhan();
     final themeMode = await SettingsService.getThemeMode();
+    final isIgnored = await WidgetService.isIgnoringBatteryOptimizations();
     if (mounted) {
       setState(() {
         _playAdhan = playAdhan;
         _themeMode = themeMode;
+        _isBatteryIgnored = isIgnored;
         _loading = false;
       });
     }
@@ -122,6 +147,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: _playAdhan,
                     activeThumbColor: primaryColor,
                     onChanged: _onAdhanChanged,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'استقرار الويدجيت والتنبيهات',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: surfaceColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
+                  ),
+                  child: ListTile(
+                    leading: Icon(
+                      _isBatteryIgnored ? Icons.battery_charging_full_rounded : Icons.battery_alert_rounded,
+                      color: _isBatteryIgnored ? Colors.green : Colors.amber,
+                    ),
+                    title: const Text('تحسين استهلاك البطارية'),
+                    subtitle: Text(
+                      _isBatteryIgnored
+                          ? 'التطبيق معفى من قيود البطارية (الويدجيت والتنبيهات تعمل بأعلى دقة)'
+                          : 'اضغط هنا للسماح للويدجيت بالعمل في الخلفية دون قيود',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    trailing: _isBatteryIgnored
+                        ? const Icon(Icons.check_circle_rounded, color: Colors.green)
+                        : TextButton(
+                            onPressed: () async {
+                              await WidgetService.requestIgnoreBatteryOptimizations();
+                            },
+                            child: const Text('تفعيل'),
+                          ),
+                    onTap: _isBatteryIgnored
+                        ? null
+                        : () async {
+                            await WidgetService.requestIgnoreBatteryOptimizations();
+                          },
                   ),
                 ),
               ],

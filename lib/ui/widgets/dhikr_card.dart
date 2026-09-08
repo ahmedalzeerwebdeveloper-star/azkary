@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme.dart';
 import '../../data/models/dhikr_model.dart';
-import '../../core/services/prayer_times_service.dart';
 
 class DhikrCard extends StatefulWidget {
   final Dhikr dhikr;

@@ -23,6 +23,40 @@ class MainActivity : FlutterActivity() {
                             result.error("UPDATE_ERROR", e.message, null)
                         }
                     }
+                    "isIgnoringBatteryOptimizations" -> {
+                        try {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                                result.success(pm.isIgnoringBatteryOptimizations(packageName))
+                            } else {
+                                result.success(true)
+                            }
+                        } catch (e: Throwable) {
+                            result.error("BATTERY_ERROR", e.message, null)
+                        }
+                    }
+                    "requestIgnoreBatteryOptimizations" -> {
+                        try {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                                if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                                    val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                        data = android.net.Uri.parse("package:$packageName")
+                                    }
+                                    startActivity(intent)
+                                }
+                            }
+                            result.success(true)
+                        } catch (e: Throwable) {
+                            try {
+                                val intent = Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                startActivity(intent)
+                                result.success(true)
+                            } catch (e2: Throwable) {
+                                result.error("BATTERY_ERROR", e2.message, null)
+                            }
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

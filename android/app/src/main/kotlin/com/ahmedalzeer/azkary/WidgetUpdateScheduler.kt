@@ -17,7 +17,7 @@ object WidgetUpdateScheduler {
         val now = System.currentTimeMillis()
 
         val updateTimes = mutableListOf<Long>()
-        val prayerKeys = listOf("fajr", "dhuhr", "asr", "maghrib", "isha")
+        val prayerKeys = listOf("fajr", "shurooq", "dhuhr", "asr", "maghrib", "isha")
         for (key in prayerKeys) {
             val millis = readMillis(widgetData, "${key}_millis")
             if (millis > now) updateTimes.add(millis + 5_000)
@@ -47,6 +47,9 @@ object WidgetUpdateScheduler {
         updateTimes.sorted().distinct().take(10).forEachIndexed { index, triggerAt ->
             scheduleAlarm(context, alarmManager, widgetIds, WIDGET_ALARM_BASE + index, triggerAt)
         }
+
+        // Ensure the daily midnight alarm is always scheduled
+        MidnightReceiver.scheduleMidnightAlarm(context)
     }
 
     fun triggerUpdate(context: Context) {
