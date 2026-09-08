@@ -119,33 +119,33 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
   }
 
   void _handlePageTap(TapUpDetails details, BoxConstraints constraints) {
-    final bounds = _cachedBounds[_currentPage] ?? [];
-    if (bounds.isEmpty) {
-      _toggleControls();
-      return;
-    }
+    // لمسة واحدة = إظهار/إخفاء الهيدر والفوتر فقط
+    _toggleControls();
+  }
 
+  void _handleLongPress(LongPressStartDetails details, BoxConstraints constraints) {
+    // ضغطة طويلة = اكتشاف الآية وعرض التفسير والصوت
+    final bounds = _cachedBounds[_currentPage] ?? [];
+    if (bounds.isEmpty) return;
+
+    final topPadding = MediaQuery.of(context).padding.top;
     final localPos = details.localPosition;
-    // Map local coordinates (based on 622 x 917 standard high-resolution page)
     final renderWidth = constraints.maxWidth;
     final renderHeight = constraints.maxHeight;
 
     const sourceWidth = 622.0;
     const sourceHeight = 917.0;
 
-    // Coordinate mapping for full-screen BoxFit.fill (occupying full screen width and height)
     final scaleX = renderWidth / sourceWidth;
     final scaleY = renderHeight / sourceHeight;
 
     final imageX = localPos.dx / scaleX;
-    final imageY = localPos.dy / scaleY;
+    final imageY = (localPos.dy - topPadding) / scaleY;
 
     if (imageX < 0 || imageX > sourceWidth || imageY < 0 || imageY > sourceHeight) {
-      _toggleControls();
       return;
     }
 
-    // Direct image coordinate check using pre-transformed 456x672 page coordinates
     AyahBoundModel? foundAyah;
     for (final b in bounds) {
       if (b.containsPoint(imageX, imageY)) {
@@ -157,15 +157,12 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
     if (foundAyah != null) {
       HapticFeedback.selectionClick();
       _showSingleAyahTafsirModal(foundAyah);
-    } else {
-      _toggleControls();
     }
   }
 
   void _showSingleAyahTafsirModal(AyahBoundModel ayahBound) async {
     final primaryColor = Theme.of(context).primaryColor;
-    final surfaceColor = Theme.of(context).cardTheme.color ?? AppTheme.surface;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = Colors.white; // Mushaf viewer is always light-themed
     final surahName = _pageToSurahMap[_currentPage] ?? '';
 
     final tafsir = await QuranService.getSingleAyahTafsir(
@@ -288,7 +285,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                           decoration: BoxDecoration(
                             color: isAudioPlaying
                                 ? primaryColor.withValues(alpha: 0.18)
-                                : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04)),
+                                : Colors.black.withValues(alpha: 0.04),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
                               color: isAudioPlaying
@@ -308,7 +305,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                                 ),
                                 child: Icon(
                                   isAudioPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
-                                  color: isDark ? Colors.black : Colors.white,
+                                  color: Colors.white,
                                   size: 22,
                                 ),
                               ),
@@ -325,7 +322,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                                         fontWeight: FontWeight.bold,
                                         color: isAudioPlaying
                                             ? primaryColor
-                                            : (isDark ? AppTheme.textPrimary : AppTheme.lightTextPrimary),
+                                            : AppTheme.lightTextPrimary,
                                       ),
                                     ),
                                     Text(
@@ -333,7 +330,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                                       style: TextStyle(
                                         fontFamily: 'Cairo',
                                         fontSize: 11,
-                                        color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                                        color: AppTheme.lightTextSecondary,
                                       ),
                                     ),
                                   ],
@@ -367,7 +364,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                           fontFamily: 'Cairo',
                           fontSize: 16,
                           height: 1.85,
-                          color: isDark ? AppTheme.textPrimary : AppTheme.lightTextPrimary,
+                          color: AppTheme.lightTextPrimary,
                         ),
                       ),
                     ),
@@ -386,8 +383,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
 
   void _showFullPageTafsir() {
     final primaryColor = Theme.of(context).primaryColor;
-    final surfaceColor = Theme.of(context).cardTheme.color ?? AppTheme.surface;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = Colors.white; // Mushaf viewer is always light-themed
 
     showModalBottomSheet(
       context: context,
@@ -489,7 +485,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                                   fontFamily: 'Cairo',
                                   fontSize: 15,
                                   height: 1.8,
-                                  color: isDark ? AppTheme.textPrimary : AppTheme.lightTextPrimary,
+                                  color: AppTheme.lightTextPrimary,
                                 ),
                               ),
                             ],
@@ -585,7 +581,6 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).primaryColor;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final surahName = _pageToSurahMap[_currentPage] ?? '';
     final juzNumber = _pageToJuzMap[_currentPage] ?? 1;
 
@@ -605,9 +600,11 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
         children: [
           // PageView displaying Quran images (RTL) with interactive touch & pinch-zoom (Full Screen)
           Positioned.fill(
-            child: Directionality(
-              textDirection: TextDirection.rtl,
-              child: PageView.builder(
+            child: SafeArea(
+              bottom: false,
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: PageView.builder(
                 controller: _pageController,
                 onPageChanged: _onPageChanged,
                 itemCount: 604,
@@ -617,6 +614,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                     builder: (context, constraints) {
                       return GestureDetector(
                         onTapUp: (details) => _handlePageTap(details, constraints),
+                        onLongPressStart: (details) => _handleLongPress(details, constraints),
                         child: InteractiveViewer(
                           minScale: 1.0,
                           maxScale: 3.0,
@@ -655,6 +653,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
               ),
             ),
           ),
+        ),
 
           // Top Header Bar (Floating frosted glass overlay with SafeArea)
           AnimatedPositioned(
@@ -668,10 +667,10 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                 filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: (isDark ? const Color(0xFF0F172A) : Colors.white).withValues(alpha: 0.65),
+                    color: Colors.white.withValues(alpha: 0.65),
                     border: Border(
                       bottom: BorderSide(
-                        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
+                        color: Colors.black.withValues(alpha: 0.08),
                         width: 1,
                       ),
                     ),
@@ -713,7 +712,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                                   style: TextStyle(
                                     fontFamily: 'Cairo',
                                     fontSize: 12,
-                                    color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                                    color: AppTheme.lightTextSecondary,
                                   ),
                                 ),
                               ],
@@ -728,7 +727,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                           IconButton(
                             icon: Icon(
                               _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                              color: _isBookmarked ? primaryColor : null,
+                              color: _isBookmarked ? primaryColor : Colors.grey.shade600,
                             ),
                             onPressed: () async {
                               final messenger = ScaffoldMessenger.of(context);
@@ -784,10 +783,10 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                 filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: (isDark ? const Color(0xFF0F172A) : Colors.white).withValues(alpha: 0.65),
+                    color: Colors.white.withValues(alpha: 0.65),
                     border: Border(
                       top: BorderSide(
-                        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
+                        color: Colors.black.withValues(alpha: 0.08),
                         width: 1,
                       ),
                     ),
@@ -814,7 +813,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                                 style: TextStyle(
                                   fontFamily: 'Cairo',
                                   fontSize: 12,
-                                  color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                                  color: AppTheme.lightTextSecondary,
                                 ),
                               ),
                               Expanded(
@@ -841,7 +840,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                                 style: TextStyle(
                                   fontFamily: 'Cairo',
                                   fontSize: 12,
-                                  color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                                  color: AppTheme.lightTextSecondary,
                                 ),
                               ),
                             ],
@@ -863,11 +862,11 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                               ),
                               Container(height: 20, width: 1, color: Colors.grey.withValues(alpha: 0.3)),
                               Text(
-                                'اضغط على أي آية لعرض تفسيرها',
+                                'اضغط مطولاً على أي آية لعرض تفسيرها',
                                 style: TextStyle(
                                   fontFamily: 'Cairo',
                                   fontSize: 12,
-                                  color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                                  color: AppTheme.lightTextSecondary,
                                 ),
                               ),
                             ],

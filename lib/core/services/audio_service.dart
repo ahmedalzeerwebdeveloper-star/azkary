@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -5,6 +6,8 @@ class QuranAudioService {
   static final AudioPlayer _player = AudioPlayer();
   static bool _isPlaying = false;
   static String? _currentPlayingKey;
+  static StreamSubscription<void>? _completeSubscription;
+  static StreamSubscription<PlayerState>? _stateSubscription;
 
   static bool get isPlaying => _isPlaying;
   static String? get currentPlayingKey => _currentPlayingKey;
@@ -46,25 +49,42 @@ class QuranAudioService {
     final key = '$sura:$aya';
     final url = getAyahAudioUrl(sura, aya);
 
+    // If same ayah is playing, stop it
     if (_isPlaying && _currentPlayingKey == key) {
       await stop();
       onStateChanged(false);
       return;
     }
 
-    await _player.stop();
+    // Stop any currently playing audio
+    await stop();
+
     _isPlaying = true;
     _currentPlayingKey = key;
     onStateChanged(true);
 
-    _player.onPlayerComplete.listen((_) {
+    // Cancel previous subscriptions to prevent listener leaks
+    await _completeSubscription?.cancel();
+    await _stateSubscription?.cancel();
+
+    _completeSubscription = _player.onPlayerComplete.listen((_) {
       _isPlaying = false;
       _currentPlayingKey = null;
       onStateChanged(false);
     });
 
+    // Listen for state changes to catch errors
+    _stateSubscription = _player.onPlayerStateChanged.listen((state) {
+      if (state == PlayerState.stopped && _currentPlayingKey == key) {
+        _isPlaying = false;
+        _currentPlayingKey = null;
+        onStateChanged(false);
+      }
+    });
+
     try {
-      await _player.play(UrlSource(url));
+      await _player.setSourceUrl(url);
+      await _player.resume();
     } catch (e) {
       _isPlaying = false;
       _currentPlayingKey = null;
@@ -74,6 +94,10 @@ class QuranAudioService {
 
   /// Stop current playback
   static Future<void> stop() async {
+    await _completeSubscription?.cancel();
+    _completeSubscription = null;
+    await _stateSubscription?.cancel();
+    _stateSubscription = null;
     await _player.stop();
     _isPlaying = false;
     _currentPlayingKey = null;
