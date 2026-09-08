@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme.dart';
 import '../../core/services/quran_service.dart';
+import '../../core/services/audio_service.dart';
 import '../../data/models/quran_models.dart';
 import 'quran_index_screen.dart';
 
@@ -186,6 +187,8 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
       _currentPage,
     );
 
+    final hasInternet = await QuranAudioService.hasInternetConnection();
+
     if (!mounted) return;
 
     showModalBottomSheet(
@@ -196,101 +199,202 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isAudioPlaying = QuranAudioService.isAyahPlaying(ayahBound.sura, ayahBound.aya);
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: primaryColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          '$surahName • الآية ${ayahBound.aya}',
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: primaryColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              '$surahName • الآية ${ayahBound.aya}',
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          if (tafsir != null && tafsir.tafsir.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.copy_rounded, size: 20),
+                              tooltip: 'نسخ التفسير',
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(
+                                  text: 'سورة $surahName - الآية ${ayahBound.aya}:\n${tafsir.tafsir}',
+                                ));
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('تم نسخ تفسير الآية', style: TextStyle(fontFamily: 'Cairo')),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // زر الاستماع لتلاوة الآية - يظهر فقط في حال وجود اتصال بالإنترنت
+                  if (hasInternet) ...[
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () async {
+                          if (isAudioPlaying) {
+                            await QuranAudioService.stop();
+                            setModalState(() {});
+                          } else {
+                            await QuranAudioService.playAyah(
+                              sura: ayahBound.sura,
+                              aya: ayahBound.aya,
+                              onStateChanged: (_) {
+                                if (context.mounted) {
+                                  setModalState(() {});
+                                }
+                              },
+                            );
+                            setModalState(() {});
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isAudioPlaying
+                                ? primaryColor.withValues(alpha: 0.18)
+                                : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04)),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isAudioPlaying
+                                  ? primaryColor
+                                  : primaryColor.withValues(alpha: 0.25),
+                              width: isAudioPlaying ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: primaryColor,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isAudioPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                                  color: isDark ? Colors.black : Colors.white,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isAudioPlaying ? 'جاري الاستماع للآية...' : 'استمع لتلاوة الآية',
+                                      style: TextStyle(
+                                        fontFamily: 'Cairo',
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: isAudioPlaying
+                                            ? primaryColor
+                                            : (isDark ? AppTheme.textPrimary : AppTheme.lightTextPrimary),
+                                      ),
+                                    ),
+                                    Text(
+                                      'بصوت الشيخ عبدالباسط عبدالصمد (مرتل)',
+                                      style: TextStyle(
+                                        fontFamily: 'Cairo',
+                                        fontSize: 11,
+                                        color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                isAudioPlaying ? Icons.volume_up_rounded : Icons.headphones_rounded,
+                                color: primaryColor.withValues(alpha: 0.8),
+                                size: 20,
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      if (tafsir != null && tafsir.tafsir.isNotEmpty)
-                        IconButton(
-                          icon: const Icon(Icons.copy_rounded, size: 20),
-                          tooltip: 'نسخ التفسير',
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(
-                              text: 'سورة $surahName - الآية ${ayahBound.aya}:\n${tafsir.tafsir}',
-                            ));
-                            Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('تم نسخ تفسير الآية', style: TextStyle(fontFamily: 'Cairo')),
-                                duration: Duration(seconds: 1),
-                              ),
-                            );
-                          },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  const Divider(height: 1),
+                  const SizedBox(height: 14),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.40,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        (tafsir != null && tafsir.tafsir.isNotEmpty)
+                            ? tafsir.tafsir
+                            : 'جاري تحميل التفسير أو لا يتوفر تفسير حالياً.',
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 16,
+                          height: 1.85,
+                          color: isDark ? AppTheme.textPrimary : AppTheme.lightTextPrimary,
                         ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(ctx),
                       ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 14),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.45,
-                ),
-                child: SingleChildScrollView(
-                  child: Text(
-                    (tafsir != null && tafsir.tafsir.isNotEmpty)
-                        ? tafsir.tafsir
-                        : 'جاري تحميل التفسير أو لا يتوفر تفسير حالياً.',
-                    style: TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 16,
-                      height: 1.85,
-                      color: isDark ? AppTheme.textPrimary : AppTheme.lightTextPrimary,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                ],
               ),
-              const SizedBox(height: 16),
-            ],
-          ),
+            );
+          },
         );
       },
-    );
+    ).whenComplete(() {
+      QuranAudioService.stop();
+    });
   }
 
   void _showFullPageTafsir() {
@@ -486,6 +590,7 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
 
   @override
   void dispose() {
+    QuranAudioService.stop();
     _pageController.dispose();
     super.dispose();
   }
