@@ -4,6 +4,7 @@ import '../../core/services/settings_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/services/widget_service.dart';
 import '../../main.dart';
+import 'about_developer_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -191,6 +192,50 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                           },
                   ),
                 ),
+                const SizedBox(height: 24),
+                Text(
+                  'حول التطبيق',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: surfaceColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
+                  ),
+                  child: ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.info_outline_rounded, color: primaryColor),
+                    ),
+                    title: const Text(
+                      'عن المطور والتطبيق',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      'معلومات المطور، التواصل السريع للدعم الفني، وصدقة جارية',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AboutDeveloperScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 24),
               ],
             ),
     );

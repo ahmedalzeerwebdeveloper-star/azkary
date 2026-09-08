@@ -589,13 +589,14 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
     final surahName = _pageToSurahMap[_currentPage] ?? '';
     final juzNumber = _pageToJuzMap[_currentPage] ?? 1;
 
+    // Ultra-light pearl beige (#FDFCFA) as requested for both light and dark system themes
     Color screenBgColor;
     if (_colorMode == QuranColorFilterMode.dark) {
       screenBgColor = Colors.black;
     } else if (_colorMode == QuranColorFilterMode.sepia) {
       screenBgColor = const Color(0xFFF7F3E8);
     } else {
-      screenBgColor = isDark ? const Color(0xFF121212) : const Color(0xFFFBF9F5);
+      screenBgColor = const Color(0xFFFDFCFA);
     }
 
     return Scaffold(
