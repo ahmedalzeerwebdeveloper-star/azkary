@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme.dart';
@@ -132,19 +133,12 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
     const sourceWidth = 456.0;
     const sourceHeight = 672.0;
 
-    // Aspect ratio fit calculation (BoxFit.contain)
-    final scale = (renderWidth / sourceWidth < renderHeight / sourceHeight)
-        ? renderWidth / sourceWidth
-        : renderHeight / sourceHeight;
+    // Coordinate mapping for full-screen BoxFit.fill (occupying full screen width and height)
+    final scaleX = renderWidth / sourceWidth;
+    final scaleY = renderHeight / sourceHeight;
 
-    final displayedWidth = sourceWidth * scale;
-    final displayedHeight = sourceHeight * scale;
-
-    final offsetX = (renderWidth - displayedWidth) / 2;
-    final offsetY = (renderHeight - displayedHeight) / 2;
-
-    final imageX = (localPos.dx - offsetX) / scale;
-    final imageY = (localPos.dy - offsetY) / scale;
+    final imageX = localPos.dx / scaleX;
+    final imageY = localPos.dy / scaleY;
 
     if (imageX < 0 || imageX > sourceWidth || imageY < 0 || imageY > sourceHeight) {
       _toggleControls();
@@ -631,7 +625,9 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
                                 'assets/quran_pages/$pageNum.png',
                                 width: double.infinity,
                                 height: double.infinity,
-                                fit: BoxFit.contain,
+                                fit: BoxFit.fill,
+                                filterQuality: FilterQuality.high,
+                                isAntiAlias: true,
                                 errorBuilder: (context, error, stackTrace) {
                                   return Center(
                                     child: Column(
@@ -659,203 +655,225 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
             ),
           ),
 
-          // Top Header Bar (Floating overlay with SafeArea)
+          // Top Header Bar (Floating frosted glass overlay with SafeArea)
           AnimatedPositioned(
-            duration: const Duration(milliseconds: 250),
+            duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
             top: _showControls ? 0 : -140,
             left: 0,
             right: 0,
-            child: Container(
-              decoration: BoxDecoration(
-                color: (isDark ? AppTheme.surface : AppTheme.lightSurface).withValues(alpha: 0.95),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back),
-                        color: primaryColor,
-                        onPressed: () => Navigator.pop(context),
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: (isDark ? const Color(0xFF0F172A) : Colors.white).withValues(alpha: 0.65),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
+                        width: 1,
                       ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              surahName.isNotEmpty ? surahName : 'المصحف الشريف',
-                              style: TextStyle(
-                                fontFamily: 'Cairo',
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                                color: primaryColor,
-                              ),
-                            ),
-                            Text(
-                              'الجزء $juzNumber • صفحة $_currentPage',
-                              style: TextStyle(
-                                fontFamily: 'Cairo',
-                                fontSize: 12,
-                                color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.palette_outlined),
-                        color: primaryColor,
-                        tooltip: 'وضع القراءة',
-                        onPressed: _showColorFilterDialog,
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                          color: _isBookmarked ? primaryColor : null,
-                        ),
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final res = await QuranService.toggleBookmark(_currentPage);
-                          if (!mounted) return;
-                          setState(() {
-                            _isBookmarked = res;
-                          });
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                res ? 'تمت إضافة العلامة لصفحة $_currentPage' : 'تم حذف العلامة',
-                                style: const TextStyle(fontFamily: 'Cairo'),
-                              ),
-                              duration: const Duration(seconds: 1),
-                            ),
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.list_alt),
-                        color: primaryColor,
-                        onPressed: () async {
-                          final selectedPage = await Navigator.push<int>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => QuranIndexScreen(currentPage: _currentPage),
-                            ),
-                          );
-                          if (selectedPage != null) {
-                            _jumpToPage(selectedPage);
-                          }
-                        },
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 15,
+                        offset: const Offset(0, 4),
                       ),
                     ],
+                  ),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back),
+                            color: primaryColor,
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  surahName.isNotEmpty ? surahName : 'المصحف الشريف',
+                                  style: TextStyle(
+                                    fontFamily: 'Cairo',
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryColor,
+                                  ),
+                                ),
+                                Text(
+                                  'الجزء $juzNumber • صفحة $_currentPage',
+                                  style: TextStyle(
+                                    fontFamily: 'Cairo',
+                                    fontSize: 12,
+                                    color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.palette_outlined),
+                            color: primaryColor,
+                            tooltip: 'وضع القراءة',
+                            onPressed: _showColorFilterDialog,
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                              color: _isBookmarked ? primaryColor : null,
+                            ),
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              final res = await QuranService.toggleBookmark(_currentPage);
+                              if (!mounted) return;
+                              setState(() {
+                                _isBookmarked = res;
+                              });
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    res ? 'تمت إضافة العلامة لصفحة $_currentPage' : 'تم حذف العلامة',
+                                    style: const TextStyle(fontFamily: 'Cairo'),
+                                  ),
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.list_alt),
+                            color: primaryColor,
+                            onPressed: () async {
+                              final selectedPage = await Navigator.push<int>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => QuranIndexScreen(currentPage: _currentPage),
+                                ),
+                              );
+                              if (selectedPage != null) {
+                                _jumpToPage(selectedPage);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
 
-          // Bottom Navigation & Fast Page Slider Bar (Floating overlay with SafeArea)
+          // Bottom Navigation & Fast Page Slider Bar (Floating frosted glass overlay with SafeArea)
           AnimatedPositioned(
-            duration: const Duration(milliseconds: 250),
+            duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
             bottom: _showControls ? 0 : -160,
             left: 0,
             right: 0,
-            child: Container(
-              decoration: BoxDecoration(
-                color: (isDark ? AppTheme.surface : AppTheme.lightSurface).withValues(alpha: 0.95),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, -3),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Fast Page Slider
-                      Row(
-                        children: [
-                          Text(
-                            '1',
-                            style: TextStyle(
-                              fontFamily: 'Cairo',
-                              fontSize: 12,
-                              color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
-                            ),
-                          ),
-                          Expanded(
-                            child: SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                activeTrackColor: primaryColor,
-                                thumbColor: primaryColor,
-                                inactiveTrackColor: primaryColor.withValues(alpha: 0.2),
-                                trackHeight: 3,
-                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                              ),
-                              child: Slider(
-                                value: _currentPage.toDouble(),
-                                min: 1,
-                                max: 604,
-                                onChanged: (val) {
-                                  _jumpToPage(val.round());
-                                },
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '604',
-                            style: TextStyle(
-                              fontFamily: 'Cairo',
-                              fontSize: 12,
-                              color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
-                            ),
-                          ),
-                        ],
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: (isDark ? const Color(0xFF0F172A) : Colors.white).withValues(alpha: 0.65),
+                    border: Border(
+                      top: BorderSide(
+                        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
+                        width: 1,
                       ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          TextButton.icon(
-                            onPressed: _showFullPageTafsir,
-                            icon: Icon(Icons.auto_stories, color: primaryColor, size: 20),
-                            label: Text(
-                              'تفسير الصفحة',
-                              style: TextStyle(
-                                fontFamily: 'Cairo',
-                                fontWeight: FontWeight.bold,
-                                color: primaryColor,
-                              ),
-                            ),
-                          ),
-                          Container(height: 20, width: 1, color: Colors.grey.withValues(alpha: 0.3)),
-                          Text(
-                            'اضغط على أي آية لعرض تفسيرها',
-                            style: TextStyle(
-                              fontFamily: 'Cairo',
-                              fontSize: 12,
-                              color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
-                            ),
-                          ),
-                        ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 15,
+                        offset: const Offset(0, -4),
                       ),
                     ],
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Fast Page Slider
+                          Row(
+                            children: [
+                              Text(
+                                '1',
+                                style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontSize: 12,
+                                  color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                                ),
+                              ),
+                              Expanded(
+                                child: SliderTheme(
+                                  data: SliderTheme.of(context).copyWith(
+                                    activeTrackColor: primaryColor,
+                                    thumbColor: primaryColor,
+                                    inactiveTrackColor: primaryColor.withValues(alpha: 0.2),
+                                    trackHeight: 3,
+                                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                                  ),
+                                  child: Slider(
+                                    value: _currentPage.toDouble(),
+                                    min: 1,
+                                    max: 604,
+                                    onChanged: (val) {
+                                      _jumpToPage(val.round());
+                                    },
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '604',
+                                style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontSize: 12,
+                                  color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              TextButton.icon(
+                                onPressed: _showFullPageTafsir,
+                                icon: Icon(Icons.auto_stories, color: primaryColor, size: 20),
+                                label: Text(
+                                  'تفسير الصفحة',
+                                  style: TextStyle(
+                                    fontFamily: 'Cairo',
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryColor,
+                                  ),
+                                ),
+                              ),
+                              Container(height: 20, width: 1, color: Colors.grey.withValues(alpha: 0.3)),
+                              Text(
+                                'اضغط على أي آية لعرض تفسيرها',
+                                style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontSize: 12,
+                                  color: isDark ? AppTheme.textSecondary : AppTheme.lightTextSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
