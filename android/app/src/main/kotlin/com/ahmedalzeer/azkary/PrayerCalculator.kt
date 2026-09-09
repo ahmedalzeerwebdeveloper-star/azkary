@@ -236,7 +236,7 @@ object PrayerCalculator {
             // Calculate and save Hijri Date
             editor.putString("hijri", getHijriDate(calToday))
             
-            editor.apply()
+            editor.commit()
             
             return true
         } catch (e: Exception) {

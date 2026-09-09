@@ -37,8 +37,21 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
         val activeColor = android.graphics.Color.parseColor("#ff8f00")
         val defaultColor = android.graphics.Color.parseColor("#757575")
 
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        val pendingIntent = if (launchIntent != null) {
+            android.app.PendingIntent.getActivity(
+                context,
+                0,
+                launchIntent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+        } else null
+
         appWidgetIds.forEach { widgetId ->
             val views = RemoteViews(context.packageName, R.layout.prayer_widget).apply {
+                if (pendingIntent != null) {
+                    setOnClickPendingIntent(R.id.widget_root, pendingIntent)
+                }
                 setTextViewText(R.id.tv_fajr, freshPrefs.getString("fajr", "--"))
                 setTextViewText(R.id.tv_shurooq, freshPrefs.getString("shurooq", "--"))
                 setTextViewText(R.id.tv_dhuhr, freshPrefs.getString("dhuhr", "--"))
@@ -57,6 +70,8 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
 
                 val timeDiff = nextPrayerMillis - now
                 if (nextPrayerMillis > now && timeDiff > 1000) {
+                    setViewVisibility(R.id.chrono_next_prayer_time, View.VISIBLE)
+                    setViewVisibility(R.id.tv_now, View.GONE)
                     val chronometerBase = android.os.SystemClock.elapsedRealtime() + timeDiff
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
                         setChronometerCountDown(R.id.chrono_next_prayer_time, true)
@@ -64,11 +79,8 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
                     setChronometer(R.id.chrono_next_prayer_time, chronometerBase, "بعد %s", true)
                 } else {
                     // Time has arrived or is past (within a few minutes)
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                        setChronometerCountDown(R.id.chrono_next_prayer_time, false)
-                    }
-                    setChronometer(R.id.chrono_next_prayer_time, android.os.SystemClock.elapsedRealtime(), "%s", false)
-                    setTextViewText(R.id.chrono_next_prayer_time, "حان الآن")
+                    setViewVisibility(R.id.chrono_next_prayer_time, View.GONE)
+                    setViewVisibility(R.id.tv_now, View.VISIBLE)
                 }
             }
             appWidgetManager.updateAppWidget(widgetId, views)

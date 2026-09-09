@@ -13,6 +13,11 @@
 -keep class com.ahmedalzeer.azkary.PrayerWidgetProvider { *; }
 -keep class com.ahmedalzeer.azkary.MainActivity { *; }
 -keep class com.ahmedalzeer.azkary.AlarmReceiver { *; }
+-keep class com.ahmedalzeer.azkary.MidnightReceiver { *; }
+-keep class com.ahmedalzeer.azkary.BootReceiver { *; }
+-keep class com.ahmedalzeer.azkary.PrayerCalculator { *; }
+-keep class com.ahmedalzeer.azkary.WidgetUpdateScheduler { *; }
+-keep class com.ahmedalzeer.azkary.PrayerTimes { *; }
 
 # Keep Play Core (needed by Flutter deferred components)
 -dontwarn com.google.android.play.core.**
