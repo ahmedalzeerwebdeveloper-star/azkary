@@ -136,41 +136,47 @@ object PrayerCalculator {
         )
     }
 
+    fun getLat(flutterPrefs: SharedPreferences): Double {
+        var lat = 30.0444
+        try {
+            if (flutterPrefs.contains("flutter.cached_lat")) {
+                lat = flutterPrefs.getFloat("flutter.cached_lat", 30.0444f).toDouble()
+            }
+        } catch (e: Exception) {
+            try {
+                val latStr = flutterPrefs.getString("flutter.cached_lat", "30.0444")
+                if (latStr != null) lat = latStr.toDouble()
+            } catch (e2: Exception) {
+                val latD = flutterPrefs.getLong("flutter.cached_lat", 0L)
+                if (latD != 0L) lat = Double.fromBits(latD)
+            }
+        }
+        return lat
+    }
+
+    fun getLng(flutterPrefs: SharedPreferences): Double {
+        var lng = 31.2357
+        try {
+            if (flutterPrefs.contains("flutter.cached_lng")) {
+                lng = flutterPrefs.getFloat("flutter.cached_lng", 31.2357f).toDouble()
+            }
+        } catch (e: Exception) {
+            try {
+                val lngStr = flutterPrefs.getString("flutter.cached_lng", "31.2357")
+                if (lngStr != null) lng = lngStr.toDouble()
+            } catch (e2: Exception) {
+                val lngD = flutterPrefs.getLong("flutter.cached_lng", 0L)
+                if (lngD != 0L) lng = Double.fromBits(lngD)
+            }
+        }
+        return lng
+    }
+
     fun recalculateAndSave(context: Context): Boolean {
         try {
             val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            
-            var lat = 30.0444
-            var lng = 31.2357
-            
-            // Try reading as Float, String, or Double
-            try {
-                if (flutterPrefs.contains("flutter.cached_lat")) {
-                    lat = flutterPrefs.getFloat("flutter.cached_lat", 30.0444f).toDouble()
-                }
-            } catch (e: Exception) {
-                try {
-                    val latStr = flutterPrefs.getString("flutter.cached_lat", "30.0444")
-                    if (latStr != null) lat = latStr.toDouble()
-                } catch (e2: Exception) {
-                    val latD = flutterPrefs.getLong("flutter.cached_lat", 0L)
-                    if (latD != 0L) lat = Double.fromBits(latD)
-                }
-            }
-
-            try {
-                if (flutterPrefs.contains("flutter.cached_lng")) {
-                    lng = flutterPrefs.getFloat("flutter.cached_lng", 31.2357f).toDouble()
-                }
-            } catch (e: Exception) {
-                try {
-                    val lngStr = flutterPrefs.getString("flutter.cached_lng", "31.2357")
-                    if (lngStr != null) lng = lngStr.toDouble()
-                } catch (e2: Exception) {
-                    val lngD = flutterPrefs.getLong("flutter.cached_lng", 0L)
-                    if (lngD != 0L) lng = Double.fromBits(lngD)
-                }
-            }
+            val lat = getLat(flutterPrefs)
+            val lng = getLng(flutterPrefs)
 
             val calToday = Calendar.getInstance()
             val timesToday = calculatePrayerTimes(calToday, lat, lng)

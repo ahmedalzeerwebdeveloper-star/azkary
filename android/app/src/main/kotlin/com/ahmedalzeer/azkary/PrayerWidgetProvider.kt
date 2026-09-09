@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetProvider
 import java.text.SimpleDateFormat
@@ -11,13 +12,18 @@ import java.util.Date
 import java.util.Locale
 
 class PrayerWidgetProvider : HomeWidgetProvider() {
+
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray, widgetData: SharedPreferences) {
         val now = System.currentTimeMillis()
 
-        // Check if data is stale (from a previous day) and recalculate if needed
-        ensureFreshData(context, widgetData)
+        // 1. Check staleness and recalculate if needed
+        ensureFreshData(context)
 
-        val (nextPrayerName, nextPrayerMillis) = findNextPrayer(widgetData, now, context)
+        // 2. Always read from fresh SharedPreferences
+        val freshPrefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
+
+        // 3. Find the next prayer with robust fallback
+        val (nextPrayerName, nextPrayerMillis) = findNextPrayer(freshPrefs, now, context)
 
         val prayerViewIds = mapOf(
             "الفجر" to R.id.tv_fajr,
@@ -33,14 +39,14 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
 
         appWidgetIds.forEach { widgetId ->
             val views = RemoteViews(context.packageName, R.layout.prayer_widget).apply {
-                setTextViewText(R.id.tv_fajr, widgetData.getString("fajr", "--"))
-                setTextViewText(R.id.tv_shurooq, widgetData.getString("shurooq", "--"))
-                setTextViewText(R.id.tv_dhuhr, widgetData.getString("dhuhr", "--"))
-                setTextViewText(R.id.tv_asr, widgetData.getString("asr", "--"))
-                setTextViewText(R.id.tv_maghrib, widgetData.getString("maghrib", "--"))
-                setTextViewText(R.id.tv_isha, widgetData.getString("isha", "--"))
-                setTextViewText(R.id.tv_city, widgetData.getString("city", "المدينة"))
-                setTextViewText(R.id.tv_hijri, widgetData.getString("hijri", "التاريخ الهجري"))
+                setTextViewText(R.id.tv_fajr, freshPrefs.getString("fajr", "--"))
+                setTextViewText(R.id.tv_shurooq, freshPrefs.getString("shurooq", "--"))
+                setTextViewText(R.id.tv_dhuhr, freshPrefs.getString("dhuhr", "--"))
+                setTextViewText(R.id.tv_asr, freshPrefs.getString("asr", "--"))
+                setTextViewText(R.id.tv_maghrib, freshPrefs.getString("maghrib", "--"))
+                setTextViewText(R.id.tv_isha, freshPrefs.getString("isha", "--"))
+                setTextViewText(R.id.tv_city, freshPrefs.getString("city", "المدينة"))
+                setTextViewText(R.id.tv_hijri, freshPrefs.getString("hijri", "التاريخ الهجري"))
                 setTextViewText(R.id.tv_next_prayer_name, nextPrayerName)
 
                 // Dynamically highlight the next prayer in orange, reset others to default grey
@@ -57,16 +63,18 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
                     }
                     setChronometer(R.id.chrono_next_prayer_time, chronometerBase, "بعد %s", true)
                 } else {
+                    // Time has arrived or is past (within a few minutes)
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
                         setChronometerCountDown(R.id.chrono_next_prayer_time, false)
                     }
-                    setChronometer(R.id.chrono_next_prayer_time, android.os.SystemClock.elapsedRealtime(), "حان الآن", false)
+                    setChronometer(R.id.chrono_next_prayer_time, android.os.SystemClock.elapsedRealtime(), "%s", false)
+                    setTextViewText(R.id.chrono_next_prayer_time, "حان الآن")
                 }
             }
             appWidgetManager.updateAppWidget(widgetId, views)
         }
 
-        WidgetUpdateScheduler.scheduleAll(context, widgetData)
+        WidgetUpdateScheduler.scheduleAll(context, freshPrefs)
     }
 
     /**
@@ -74,9 +82,10 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
      * natively using PrayerCalculator so the widget always shows current data
      * even if the Flutter app hasn't been opened.
      */
-    private fun ensureFreshData(context: Context, widgetData: SharedPreferences) {
+    private fun ensureFreshData(context: Context) {
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        val lastUpdate = widgetData.getString("last_update_day", null)
+        val freshPrefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
+        val lastUpdate = freshPrefs.getString("last_update_day", null)
 
         if (lastUpdate == todayStr) {
             return // Data is fresh, no recalculation needed
@@ -90,7 +99,7 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
         }
     }
 
-    private fun findNextPrayer(data: SharedPreferences, now: Long, context: Context? = null, retried: Boolean = false): Pair<String, Long> {
+    private fun findNextPrayer(data: SharedPreferences, now: Long, context: Context, retried: Boolean = false): Pair<String, Long> {
         val prayers = listOf(
             "الفجر" to WidgetUpdateScheduler.readMillis(data, "fajr_millis"),
             "الشروق" to WidgetUpdateScheduler.readMillis(data, "shurooq_millis"),
@@ -106,18 +115,30 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
         if (tomorrowFajr > now) {
             return (data.getString("tomorrow_fajr_name", "الفجر") ?: "الفجر") to tomorrowFajr
         }
+
         // All times have passed — data is stale. Force recalculation once.
-        if (!retried && context != null) {
-            Log.d("PrayerWidgetProvider", "All prayer times passed — forcing recalculation")
+        if (!retried) {
+            Log.d("PrayerWidgetProvider", "All prayer times passed — forcing native recalculation")
             try {
                 PrayerCalculator.recalculateAndSave(context)
-                // Retry with fresh data
-                val freshData = context.getSharedPreferences("HomeWidgetPreferences", android.content.Context.MODE_PRIVATE)
+                val freshData = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
                 return findNextPrayer(freshData, now, context, retried = true)
             } catch (e: Exception) {
                 Log.e("PrayerWidgetProvider", "Error during forced recalculation", e)
             }
         }
-        return "الفجر" to 0L
+
+        // Ultimate fallback: calculate tomorrow's Fajr directly using PrayerCalculator
+        try {
+            val cal = java.util.Calendar.getInstance()
+            cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+            val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val lat = PrayerCalculator.getLat(flutterPrefs)
+            val lng = PrayerCalculator.getLng(flutterPrefs)
+            val tomorrowTimes = PrayerCalculator.calculatePrayerTimes(cal, lat, lng)
+            return "الفجر" to tomorrowTimes.fajr
+        } catch (_: Exception) {
+            return "الفجر" to (now + 6 * 3600 * 1000L)
+        }
     }
 }

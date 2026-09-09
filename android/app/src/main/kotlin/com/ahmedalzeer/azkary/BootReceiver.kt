@@ -21,7 +21,7 @@ class BootReceiver : BroadcastReceiver() {
             Log.e("BootReceiver", "Error recalculating prayer times", e)
         }
 
-        val widgetData = HomeWidgetPlugin.getData(context)
+        val widgetData = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
         WidgetUpdateScheduler.scheduleAll(context, widgetData)
         WidgetUpdateScheduler.triggerUpdate(context)
 

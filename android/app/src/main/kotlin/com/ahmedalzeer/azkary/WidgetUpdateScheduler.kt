@@ -20,11 +20,11 @@ object WidgetUpdateScheduler {
         val prayerKeys = listOf("fajr", "shurooq", "dhuhr", "asr", "maghrib", "isha")
         for (key in prayerKeys) {
             val millis = readMillis(widgetData, "${key}_millis")
-            if (millis > now) updateTimes.add(millis + 5_000)
+            if (millis > now) updateTimes.add(millis + 1_000)
         }
 
         val tomorrowFajr = readMillis(widgetData, "tomorrow_fajr_millis")
-        if (tomorrowFajr > now) updateTimes.add(tomorrowFajr + 5_000)
+        if (tomorrowFajr > now) updateTimes.add(tomorrowFajr + 1_000)
 
         val calendar = java.util.Calendar.getInstance().apply {
             add(java.util.Calendar.DAY_OF_YEAR, 1)
@@ -87,6 +87,8 @@ object WidgetUpdateScheduler {
         val intent = Intent(context, PrayerWidgetProvider::class.java).apply {
             action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, widgetIds)
+            // Ensure unique Intent by setting data URI so OS doesn't conflate intents
+            data = android.net.Uri.parse("custom://widget_alarm/$requestCode")
         }
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val pendingIntent = PendingIntent.getBroadcast(context, requestCode, intent, flags)
@@ -105,7 +107,9 @@ object WidgetUpdateScheduler {
     }
 
     private fun cancelAlarm(context: Context, alarmManager: AlarmManager, requestCode: Int) {
-        val intent = Intent(context, PrayerWidgetProvider::class.java)
+        val intent = Intent(context, PrayerWidgetProvider::class.java).apply {
+            data = android.net.Uri.parse("custom://widget_alarm/$requestCode")
+        }
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val pendingIntent = PendingIntent.getBroadcast(context, requestCode, intent, flags)
         alarmManager.cancel(pendingIntent)
