@@ -17,7 +17,7 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
         // Check if data is stale (from a previous day) and recalculate if needed
         ensureFreshData(context, widgetData)
 
-        val (nextPrayerName, nextPrayerMillis) = findNextPrayer(widgetData, now)
+        val (nextPrayerName, nextPrayerMillis) = findNextPrayer(widgetData, now, context)
 
         val prayerViewIds = mapOf(
             "الفجر" to R.id.tv_fajr,
@@ -90,7 +90,7 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
         }
     }
 
-    private fun findNextPrayer(data: SharedPreferences, now: Long): Pair<String, Long> {
+    private fun findNextPrayer(data: SharedPreferences, now: Long, context: Context? = null, retried: Boolean = false): Pair<String, Long> {
         val prayers = listOf(
             "الفجر" to WidgetUpdateScheduler.readMillis(data, "fajr_millis"),
             "الشروق" to WidgetUpdateScheduler.readMillis(data, "shurooq_millis"),
@@ -105,6 +105,18 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
         val tomorrowFajr = WidgetUpdateScheduler.readMillis(data, "tomorrow_fajr_millis")
         if (tomorrowFajr > now) {
             return (data.getString("tomorrow_fajr_name", "الفجر") ?: "الفجر") to tomorrowFajr
+        }
+        // All times have passed — data is stale. Force recalculation once.
+        if (!retried && context != null) {
+            Log.d("PrayerWidgetProvider", "All prayer times passed — forcing recalculation")
+            try {
+                PrayerCalculator.recalculateAndSave(context)
+                // Retry with fresh data
+                val freshData = context.getSharedPreferences("HomeWidgetPreferences", android.content.Context.MODE_PRIVATE)
+                return findNextPrayer(freshData, now, context, retried = true)
+            } catch (e: Exception) {
+                Log.e("PrayerWidgetProvider", "Error during forced recalculation", e)
+            }
         }
         return "الفجر" to 0L
     }
