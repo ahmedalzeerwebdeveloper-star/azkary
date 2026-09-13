@@ -31,7 +31,8 @@ class WidgetService {
       }
       if (prayers.isEmpty) return;
 
-String city = 'المدينة';
+      String city = 'المدينة';
+      String rawCity = 'المدينة';
       try {
         final coords = PrayerTimesService.getCoordinates();
         if (coords == null) return;
@@ -40,20 +41,27 @@ String city = 'المدينة';
           coords.longitude,
         ).timeout(const Duration(seconds: 5));
         if (placemarks.isNotEmpty) {
-          city = placemarks.first.subAdministrativeArea ?? placemarks.first.locality ?? 'المدينة';
+          rawCity = placemarks.first.subAdministrativeArea ?? placemarks.first.locality ?? 'المدينة';
         }
       } catch (_) {
       }
       
       const arabicDays = ['الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
       final currentDay = arabicDays[DateTime.now().weekday - 1];
-      city = '$currentDay، $city';
+      city = '$currentDay، $rawCity';
 
       HijriCalendar.setLocal('ar');
       final today = HijriCalendar.now();
       String hijriDate = '${today.hDay} ${today.longMonthName} ${today.hYear}';
 
+      final coords = PrayerTimesService.getCoordinates();
+      if (coords != null) {
+        await HomeWidget.saveWidgetData<double>('lat', coords.latitude);
+        await HomeWidget.saveWidgetData<double>('lng', coords.longitude);
+      }
+
       await HomeWidget.saveWidgetData<String>('city', city);
+      await HomeWidget.saveWidgetData<String>('city_name', rawCity);
       await HomeWidget.saveWidgetData<String>('hijri', hijriDate);
       final tomorrowPrayers = PrayerTimesService.getPrayersForDate(DateTime.now().add(const Duration(days: 1)));
       if (tomorrowPrayers.isNotEmpty) {

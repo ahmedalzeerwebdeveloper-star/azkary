@@ -1,7 +1,9 @@
 package com.ahmedalzeer.azkary
 
 import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.util.Log
 import android.view.View
@@ -12,6 +14,27 @@ import java.util.Date
 import java.util.Locale
 
 class PrayerWidgetProvider : HomeWidgetProvider() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        val action = intent.action
+        Log.d("PrayerWidgetProvider", "onReceive: action=$action")
+        if (action == Intent.ACTION_USER_PRESENT ||
+            action == Intent.ACTION_DATE_CHANGED ||
+            action == Intent.ACTION_TIME_CHANGED ||
+            action == Intent.ACTION_TIMEZONE_CHANGED ||
+            action == Intent.ACTION_BOOT_COMPLETED
+        ) {
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val componentName = ComponentName(context, PrayerWidgetProvider::class.java)
+            val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
+            if (appWidgetIds != null && appWidgetIds.isNotEmpty()) {
+                val widgetData = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
+                onUpdate(context, appWidgetManager, appWidgetIds, widgetData)
+            }
+            return
+        }
+        super.onReceive(context, intent)
+    }
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray, widgetData: SharedPreferences) {
         val now = System.currentTimeMillis()
@@ -145,12 +168,17 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
             val cal = java.util.Calendar.getInstance()
             cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
             val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val lat = PrayerCalculator.getLat(flutterPrefs)
-            val lng = PrayerCalculator.getLng(flutterPrefs)
+            val widgetPrefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
+            val lat = PrayerCalculator.getLat(widgetPrefs, flutterPrefs)
+            val lng = PrayerCalculator.getLng(widgetPrefs, flutterPrefs)
             val tomorrowTimes = PrayerCalculator.calculatePrayerTimes(cal, lat, lng)
             return "الفجر" to tomorrowTimes.fajr
         } catch (_: Exception) {
-            return "الفجر" to (now + 6 * 3600 * 1000L)
+            val cal = java.util.Calendar.getInstance()
+            cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 5)
+            cal.set(java.util.Calendar.MINUTE, 5)
+            return "الفجر" to cal.timeInMillis
         }
     }
 }
