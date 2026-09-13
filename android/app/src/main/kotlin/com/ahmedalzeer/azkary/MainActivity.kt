@@ -90,17 +90,6 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun updatePrayerWidgetDirectly() {
-        val context: Context = applicationContext
-        val appWidgetManager = AppWidgetManager.getInstance(context)
-        val componentName = ComponentName(context, PrayerWidgetProvider::class.java)
-        val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
-
-        if (appWidgetIds.isNotEmpty()) {
-            val intent = Intent(context, PrayerWidgetProvider::class.java).apply {
-                action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, appWidgetIds)
-            }
-            context.sendBroadcast(intent)
-        }
+        PrayerWidgetProvider.updateDirectly(applicationContext)
     }
 }

@@ -53,16 +53,7 @@ object WidgetUpdateScheduler {
     }
 
     fun triggerUpdate(context: Context) {
-        val appWidgetManager = AppWidgetManager.getInstance(context)
-        val componentName = ComponentName(context, PrayerWidgetProvider::class.java)
-        val widgetIds = appWidgetManager.getAppWidgetIds(componentName)
-        if (widgetIds.isEmpty()) return
-
-        val intent = Intent(context, PrayerWidgetProvider::class.java).apply {
-            action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, widgetIds)
-        }
-        context.sendBroadcast(intent)
+        PrayerWidgetProvider.updateDirectly(context)
     }
 
     fun readMillis(data: SharedPreferences, key: String): Long {
@@ -87,27 +78,43 @@ object WidgetUpdateScheduler {
         val intent = Intent(context, PrayerWidgetProvider::class.java).apply {
             action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, widgetIds)
-            // Ensure unique Intent by setting data URI so OS doesn't conflate intents
             data = android.net.Uri.parse("custom://widget_alarm/$requestCode")
         }
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val pendingIntent = PendingIntent.getBroadcast(context, requestCode, intent, flags)
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent
+            // Priority 1: setAlarmClock guarantees OS wakeup even in Samsung Deep Sleep and Doze Mode
+            val showIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            val showPendingIntent = if (showIntent != null) {
+                PendingIntent.getActivity(
+                    context,
+                    0,
+                    showIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
-            } else {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            } else pendingIntent
+
+            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerAtMillis, showPendingIntent)
+            alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+        } catch (_: Exception) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent
+                    )
+                } else {
+                    alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                }
+            } catch (_: SecurityException) {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             }
-        } catch (_: SecurityException) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
         }
     }
 
     private fun cancelAlarm(context: Context, alarmManager: AlarmManager, requestCode: Int) {
         val intent = Intent(context, PrayerWidgetProvider::class.java).apply {
+            action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
             data = android.net.Uri.parse("custom://widget_alarm/$requestCode")
         }
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

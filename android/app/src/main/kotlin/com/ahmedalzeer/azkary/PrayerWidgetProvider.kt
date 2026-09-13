@@ -24,16 +24,26 @@ class PrayerWidgetProvider : HomeWidgetProvider() {
             action == Intent.ACTION_TIMEZONE_CHANGED ||
             action == Intent.ACTION_BOOT_COMPLETED
         ) {
-            val appWidgetManager = AppWidgetManager.getInstance(context)
-            val componentName = ComponentName(context, PrayerWidgetProvider::class.java)
-            val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
-            if (appWidgetIds != null && appWidgetIds.isNotEmpty()) {
-                val widgetData = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
-                onUpdate(context, appWidgetManager, appWidgetIds, widgetData)
-            }
+            updateDirectly(context)
             return
         }
         super.onReceive(context, intent)
+    }
+
+    companion object {
+        fun updateDirectly(context: Context) {
+            try {
+                val appWidgetManager = AppWidgetManager.getInstance(context)
+                val componentName = ComponentName(context, PrayerWidgetProvider::class.java)
+                val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
+                if (appWidgetIds != null && appWidgetIds.isNotEmpty()) {
+                    val widgetData = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
+                    PrayerWidgetProvider().onUpdate(context, appWidgetManager, appWidgetIds, widgetData)
+                }
+            } catch (e: Exception) {
+                Log.e("PrayerWidgetProvider", "Error in updateDirectly", e)
+            }
+        }
     }
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray, widgetData: SharedPreferences) {

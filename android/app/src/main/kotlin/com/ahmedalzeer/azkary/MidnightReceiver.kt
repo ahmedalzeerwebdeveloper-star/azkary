@@ -64,25 +64,40 @@ class MidnightReceiver : BroadcastReceiver() {
             val pendingIntent = PendingIntent.getBroadcast(context, REQUEST_CODE_MIDNIGHT, intent, flags)
 
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    if (alarmManager.canScheduleExactAlarms()) {
+                val showIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                val showPendingIntent = if (showIntent != null) {
+                    PendingIntent.getActivity(
+                        context,
+                        0,
+                        showIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                } else pendingIntent
+                val alarmClockInfo = AlarmManager.AlarmClockInfo(calendar.timeInMillis, showPendingIntent)
+                alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+                Log.d(TAG, "Midnight alarm scheduled via setAlarmClock for ${calendar.time}")
+            } catch (_: Exception) {
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        if (alarmManager.canScheduleExactAlarms()) {
+                            alarmManager.setExactAndAllowWhileIdle(
+                                AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent
+                            )
+                        } else {
+                            alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+                        }
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         alarmManager.setExactAndAllowWhileIdle(
                             AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent
                         )
                     } else {
-                        alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+                        alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
                     }
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent
-                    )
-                } else {
-                    alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+                    Log.d(TAG, "Midnight alarm scheduled for ${calendar.time}")
+                } catch (e: SecurityException) {
+                    alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+                    Log.w(TAG, "Fell back to inexact alarm", e)
                 }
-                Log.d(TAG, "Midnight alarm scheduled for ${calendar.time}")
-            } catch (e: SecurityException) {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
-                Log.w(TAG, "Fell back to inexact alarm", e)
             }
 
             // Also schedule a fallback alarm at 3:00 AM as a safety net
