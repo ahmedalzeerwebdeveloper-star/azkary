@@ -37,11 +37,11 @@ object PrayerCalculator {
         return h
     }
 
-    fun calculatePrayerTimes(calendar: Calendar, latitude: Double, longitude: Double): PrayerTimes {
+    fun calculatePrayerTimes(calendar: Calendar, latitude: Double, longitude: Double, explicitTimezone: Double? = null): PrayerTimes {
         val year = calendar.get(Calendar.YEAR)
         val month = calendar.get(Calendar.MONTH) + 1
         val day = calendar.get(Calendar.DAY_OF_MONTH)
-        val timezone = calendar.timeZone.getOffset(calendar.timeInMillis) / 3600000.0
+        val timezone = explicitTimezone ?: (calendar.timeZone.getOffset(calendar.timeInMillis) / 3600000.0)
 
         // 1. Julian Date
         var y = year
@@ -202,19 +202,33 @@ object PrayerCalculator {
         return lng
     }
 
+    fun getTzOffset(widgetPrefs: SharedPreferences): Double? {
+        try {
+            if (widgetPrefs.contains("tz_offset")) {
+                val v = widgetPrefs.all["tz_offset"]
+                if (v is Double) return v
+                if (v is Float) return v.toDouble()
+                if (v is Long) return java.lang.Double.longBitsToDouble(v)
+                if (v is String) return v.toDoubleOrNull()
+            }
+        } catch (_: Exception) {}
+        return null
+    }
+
     fun recalculateAndSave(context: Context): Boolean {
         try {
             val widgetPrefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
             val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val lat = getLat(widgetPrefs, flutterPrefs)
             val lng = getLng(widgetPrefs, flutterPrefs)
+            val tz = getTzOffset(widgetPrefs)
 
             val calToday = Calendar.getInstance()
-            val timesToday = calculatePrayerTimes(calToday, lat, lng)
+            val timesToday = calculatePrayerTimes(calToday, lat, lng, tz)
 
             val calTomorrow = Calendar.getInstance()
             calTomorrow.add(Calendar.DAY_OF_YEAR, 1)
-            val timesTomorrow = calculatePrayerTimes(calTomorrow, lat, lng)
+            val timesTomorrow = calculatePrayerTimes(calTomorrow, lat, lng, tz)
 
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
             val timeFormat = SimpleDateFormat("hh:mm a", Locale.ENGLISH)

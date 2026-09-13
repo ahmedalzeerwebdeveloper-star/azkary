@@ -59,6 +59,8 @@ class WidgetService {
         await HomeWidget.saveWidgetData<double>('lat', coords.latitude);
         await HomeWidget.saveWidgetData<double>('lng', coords.longitude);
       }
+      final tzOffsetHours = DateTime.now().timeZoneOffset.inMinutes / 60.0;
+      await HomeWidget.saveWidgetData<double>('tz_offset', tzOffsetHours);
 
       await HomeWidget.saveWidgetData<String>('city', city);
       await HomeWidget.saveWidgetData<String>('city_name', rawCity);

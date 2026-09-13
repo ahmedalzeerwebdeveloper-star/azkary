@@ -592,20 +592,25 @@ class _QuranPageViewerState extends State<QuranPageViewer> {
     } else {
       screenBgColor = const Color(0xFFFDFCFA);
     }
-    final isFilterDark = _colorMode == QuranColorFilterMode.dark;
+    final topPadding = MediaQuery.of(context).padding.top;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
+      value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: isFilterDark ? Brightness.light : Brightness.dark,
-        statusBarBrightness: isFilterDark ? Brightness.dark : Brightness.light,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
       ),
       child: Scaffold(
         backgroundColor: screenBgColor,
         body: Stack(
           children: [
-            // PageView displaying Quran images (RTL) with interactive touch & pinch-zoom (Full Screen)
-            Positioned.fill(
+            // PageView displaying Quran images (RTL) with interactive touch & pinch-zoom
+            // Leaves top space below status bar for clear visibility
+            Positioned(
+              top: topPadding,
+              left: 0,
+              right: 0,
+              bottom: 0,
               child: Directionality(
                 textDirection: TextDirection.rtl,
                 child: PageView.builder(
